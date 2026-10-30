@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Nursing Home Cat</title>
+<style>
+	:root { color-scheme: dark; }
+	html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+	body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+	#stage { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+	canvas { image-rendering: pixelated; image-rendering: crisp-edges; background: #000; max-width: 100%; max-height: 100%; touch-action: none; }
+	#pad { display: none; flex: 0 0 auto; width: 100%; box-sizing: border-box; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); justify-content: space-between; align-items: center; user-select: none; -webkit-user-select: none; touch-action: none; }
+	#pad.on { display: flex; }
+	.dpad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 4px; }
+	.btn { background: #222; color: #ddd; border: 2px solid #555; border-radius: 12px; font: bold 20px/1 monospace; display: flex; align-items: center; justify-content: center; touch-action: none; }
+	.btn.down { background: #2a4bd7; border-color: #9dafff; }
+	.ab { display: flex; gap: 16px; }
+	.ab .btn { width: 72px; height: 72px; border-radius: 50%; }
+	#log { position: fixed; left: 0; bottom: 0; color: #888; font: 10px monospace; white-space: pre; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="screen" width="320" height="180" tabindex="0"></canvas></div>
+<div id="pad">
+	<div class="dpad">
+		<span></span><div class="btn" data-cmd="0">&#9650;</div><span></span>
+		<div class="btn" data-cmd="3">&#9664;</div><span></span><div class="btn" data-cmd="1">&#9654;</div>
+		<span></span><div class="btn" data-cmd="2">&#9660;</div><span></span>
+	</div>
+	<div class="ab"><div class="btn" data-cmd="5">B</div><div class="btn" data-cmd="4">A</div></div>
+</div>
+<pre id="log"></pre>
+<script src="odin.js"></script>
+<script>
+(function () {
+	"use strict";
+	const canvas = document.getElementById("screen");
+	const ctx = canvas.getContext("2d");
+	const logEl = document.getElementById("log");
+	const mem = new odin.WasmMemoryInterface();
+	const enc = new TextEncoder();
+	const dec = new TextDecoder();
+
+	// Order must match `Sfx` in odin/game/types.odin (index 0 is "none").
+	const SOUND_FILES = [null, "purr", "content", "wrong", "bell", "fart", "blip", "day_end", "bump"];
+	let audio = null;
+	const buffers = [];
+	function unlockAudio() {
+		if (audio) { if (audio.state === "suspended") { audio.resume(); } return; }
+		const AC = window.AudioContext || window.webkitAudioContext;
+		if (!AC) { return; }
+		audio = new AC();
+		SOUND_FILES.forEach((name, i) => {
+			if (!name) { return; }
+			fetch("sfx/" + name + ".wav").then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => audio.decodeAudioData(b, res, rej)))
+				.then(buf => { buffers[i] = buf; }).catch(() => {});
+		});
+	}
+	function playSfx(i) {
+		const buf = buffers[i];
+		if (!audio || !buf) { return; }
+		const src = audio.createBufferSource();
+		const gain = audio.createGain();
+		gain.gain.value = 0.4;
+		src.buffer = buf;
+		src.connect(gain).connect(audio.destination);
+		src.start();
+	}
+
+	// ---- storage (every itch.io game shares one origin, so the game prefixes its own keys with "nhc:") ----
+	const memoryStore = new Map();
+	function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return memoryStore.get(k) ?? null; } }
+	function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { memoryStore.set(k, v); } }
+	function key(ptr, len) { return dec.decode(new Uint8Array(mem.memory.buffer, ptr, len)); }
+	const pending = new Map(); // key -> bytes, handed to the game by storage_read right after storage_len
+	const imports = {
+		env: {
+			entropy() { return Math.random(); },
+			storage_len(kp, kl) {
+				const k = key(kp, kl);
+				const v = lsGet(k);
+				if (v === null) { pending.delete(k); return -1; }
+				const bytes = enc.encode(v);
+				pending.set(k, bytes);
+				return bytes.length;
+			},
+			storage_read(kp, kl, buf, cap) {
+				const bytes = pending.get(key(kp, kl));
+				if (!bytes) { return; }
+				new Uint8Array(mem.memory.buffer, buf, Math.min(cap, bytes.length)).set(bytes.subarray(0, cap));
+			},
+			storage_write(kp, kl, vp, vl) {
+				lsSet(key(kp, kl), dec.decode(new Uint8Array(mem.memory.buffer, vp, vl)));
+			},
+		},
+	};
+
+	// ---- input ----
+	// 0 up, 1 right, 2 down, 3 left, 4 A, 5 B  (the game's Command enum)
+	function keyCommand(e) {
+		switch (e.key) {
+			case "ArrowUp": return 0; case "ArrowRight": return 1; case "ArrowDown": return 2; case "ArrowLeft": return 3;
+			case " ": case "Enter": return 4;
+			case "Escape": return 5;
+		}
+		switch (e.code) {
+			case "KeyW": case "Numpad8": return 0;
+			case "KeyD": case "Numpad6": return 1;
+			case "KeyS": case "Numpad2": return 2;
+			case "KeyA": case "Numpad4": return 3;
+			case "Numpad0": return 5;
+		}
+		return -1;
+	}
+	let exp = null;
+	function send(cmd, down) {
+		if (!exp) { return; }
+		unlockAudio();
+		exp.platform_command(cmd, down ? 1 : 0);
+	}
+	window.addEventListener("keydown", e => {
+		if (e.ctrlKey || e.altKey || e.metaKey) { return; }
+		const c = keyCommand(e);
+		if (c < 0) { return; }
+		e.preventDefault();
+		send(c, true);
+	});
+	window.addEventListener("keyup", e => {
+		const c = keyCommand(e);
+		if (c < 0) { return; }
+		e.preventDefault();
+		send(c, false);
+	});
+	window.addEventListener("blur", () => { for (let c = 0; c < 6; c++) { send(c, false); } });
+
+	// On-screen buttons: shown once a touch happens or when the main pointer is coarse.
+	const pad = document.getElementById("pad");
+	if (window.matchMedia("(pointer: coarse)").matches) { pad.classList.add("on"); }
+	window.addEventListener("touchstart", () => pad.classList.add("on"), { once: true, passive: true });
+	const held = new Map(); // pointerId -> button element
+	pad.querySelectorAll(".btn").forEach(btn => {
+		btn.addEventListener("pointerdown", e => {
+			e.preventDefault();
+				try { btn.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+			held.set(e.pointerId, btn);
+			btn.classList.add("down");
+			send(Number(btn.dataset.cmd), true);
+		});
+		const release = e => {
+			if (!held.has(e.pointerId)) { return; }
+			held.delete(e.pointerId);
+			btn.classList.remove("down");
+			send(Number(btn.dataset.cmd), false);
+		};
+		btn.addEventListener("pointerup", release);
+		btn.addEventListener("pointercancel", release);
+	});
+	// A tap on the picture is "A", so a phone without the pad can still advance the splash and messages.
+	canvas.addEventListener("pointerdown", e => { unlockAudio(); canvas.focus(); if (e.pointerType === "touch") { send(4, true); send(4, false); } });
+
+	// ---- drawing ----
+	const image = new ImageData(320, 180);
+	function fit() {
+		const stage = document.getElementById("stage");
+		const w = stage.clientWidth, h = stage.clientHeight;
+		let scale = Math.min(w / 320, h / 180);
+		// Pixel art is crispest at whole-number scales; snap when within 3 percent above one.
+		const whole = Math.floor(scale);
+		if (whole >= 1 && scale < whole * 1.03) { scale = whole; }
+		canvas.style.width = Math.floor(320 * scale) + "px";
+		canvas.style.height = Math.floor(180 * scale) + "px";
+	}
+	window.addEventListener("resize", fit);
+	function frame() {
+		if (exp) {
+			const ptr = exp.platform_frame_ptr();
+			image.data.set(new Uint8ClampedArray(mem.memory.buffer, ptr, 320 * 180 * 4));
+			ctx.putImageData(image, 0, 0);
+			const n = exp.platform_sfx_count();
+			for (let i = 0; i < n; i++) { playSfx(exp.platform_sfx_at(i)); }
+			if (n > 0) { exp.platform_sfx_clear(); }
+		}
+		requestAnimationFrame(frame);
+	}
+
+	unlockAudio(); // creates the context early (suspended until a key or tap) so the sounds are decoded by then
+	odin.runWasm("game.wasm", null, imports, mem).then(() => {
+		exp = mem.exports;
+		fit();
+		requestAnimationFrame(frame);
+		canvas.focus();
+	}).catch(err => { logEl.textContent = "failed to start: " + err; });
+	fit();
+})();
+</script>
+</body>
+</html>

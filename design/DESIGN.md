@@ -1,6 +1,6 @@
 # Nursing Home Cat: design (draft 1)
 
-Chosen by the user on October 30, 2026 from `docs/IDEAS.md` (idea 2). Working title: **Nursing Home Cat of SPLORR!!**. Everything below is a proposal for the user to correct.
+Chosen by the user on October 30, 2026 from `design/IDEAS.md` (idea 2). Working title: **Nursing Home Cat of SPLORR!!**. Everything below is a proposal for the user to correct.
 
 ## Premise
 

@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## State of the repo
 
-**Nursing Home Cat of SPLORR!!** (working title): a therapy cat makes afternoon rounds at a care home and cannot visit everyone. Chosen by the user October 30, 2026 from `docs/IDEAS.md`; the design and the user's decisions are in `docs/DESIGN.md`. The scaffold runs (title, movable cat, residents, energy, ledger); the real rules are still to do.
+**Nursing Home Cat of SPLORR!!** (working title): a therapy cat makes afternoon rounds at a care home and cannot visit everyone. Chosen by the user October 30, 2026 from `design/IDEAS.md`; the design and the user's decisions are in `design/DESIGN.md`. The scaffold runs (title, movable cat, residents, energy, ledger); the real rules are still to do.
 
 ## Commands
 
 ```bash
 tools/test.sh          # regenerates font_data.odin and tile_data.odin, runs native tests, type-checks both packages for js_wasm32
 tools/build.sh         # build/web (add --size for the shipping build)
+tools/pages.sh         # shipping build copied to docs/ (GitHub Pages, main /docs). docs/ is GENERATED and wiped each run; design notes are in design/
 python3 -m http.server -d build/web 8000   # the wasm must be served over http, not file://
 odin test odin/game -collection:nhc=odin -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_NAMES=game.<test_name>   # one test
 ```
