@@ -12,26 +12,59 @@ set_message :: proc(g: ^Game, format: string, args: ..any) {
 	g.message = fmt.bprintf(g.message_buf[:], format, ..args)
 }
 
-start_day :: proc(g: ^Game) {
-	g.screen = .Rounds
-	g.energy = ENERGY_MAX
-	g.message = ""
+// A run is DAYS_PER_RUN days; moods carry across days, so the residents are set up once here.
+new_run :: proc(g: ^Game) {
+	g.day = 1
+	g.purr = 0
 	index := 0
 	for row, y in MAP_ROWS {
 		for ch, x in row {
-			switch ch {
-			case 'C':
-				g.cat = {x, y}
-			case 'R':
+			if ch == 'R' {
 				g.residents[index] = Resident {
-					pos  = {x, y},
-					name = RESIDENT_NAMES[index],
-					want = Want(rng_below(&g.rng, len(Want))),
+					pos    = {x, y},
+					name   = RESIDENT_NAMES[index],
+					mood   = MOOD_START,
+					member = RESIDENT_MEMBER[index],
 				}
 				index += 1
 			}
 		}
 	}
+	start_day(g)
+}
+
+start_day :: proc(g: ^Game) {
+	g.screen = .Rounds
+	g.energy = ENERGY_MAX
+	g.message = ""
+	g.offering = false
+	for row, y in MAP_ROWS {
+		for ch, x in row {
+			if ch == 'C' {
+				g.cat = {x, y}
+			}
+		}
+	}
+	for &r in g.residents {
+		r.want = Want(rng_below(&g.rng, len(Want)))
+		r.visited = false
+	}
+}
+
+// Anyone left unvisited is a little quieter tomorrow.
+end_day :: proc(g: ^Game) {
+	g.offering = false
+	g.energy = max(g.energy, 0)
+	for &r in g.residents {
+		if !r.visited {
+			r.mood = max(r.mood - 1, 0)
+		}
+	}
+	g.screen = .Ledger
+}
+
+energy_spent :: proc(g: ^Game) -> int {
+	return ENERGY_MAX - g.energy
 }
 
 resident_at :: proc(g: ^Game, x, y: int) -> int {
@@ -53,20 +86,80 @@ visited_count :: proc(g: ^Game) -> int {
 	return n
 }
 
+// Bumping a resident opens the offer menu, if they are receiving; it costs no energy.
+bump :: proc(g: ^Game, i: int) {
+	r := &g.residents[i]
+	spent := energy_spent(g)
+	window := RESIDENT_WINDOWS[i]
+	switch {
+	case r.visited:
+		set_message(g, "%s has had a visit today.", r.name)
+	case spent < window[0]:
+		set_message(g, "%s is not receiving yet.", r.name)
+	case spent >= window[1]:
+		set_message(g, "%s is no longer receiving.", r.name)
+	case:
+		g.offering = true
+		g.target = i
+		g.cursor = .Lap
+		g.message = ""
+	}
+}
+
+make_offer :: proc(g: ^Game) {
+	r := &g.residents[g.target]
+	meeting := r.member && energy_spent(g) < MEETING_END
+	cost := OFFER_COST[g.cursor]
+	g.offering = false
+	r.visited = true
+	if g.cursor == r.want {
+		r.mood = min(r.mood + 2, MOOD_MAX)
+		gain := PURR_MATCH * 2 if meeting else PURR_MATCH
+		g.purr += gain
+		if meeting {
+			set_message(g, "TITTIES meeting! %s is content. +%d purr.", r.name, gain)
+		} else {
+			set_message(g, "%s is content. +%d purr.", r.name, gain)
+		}
+	} else {
+		r.mood = max(r.mood - 1, 0)
+		cost += MISMATCH_EXTRA_COST
+		set_message(g, "%s wanted %s.", r.name, WANT_TEXT[r.want])
+	}
+	g.energy -= cost
+	if g.energy <= 0 {
+		end_day(g)
+	}
+}
+
 try_move :: proc(g: ^Game, dx, dy: int) {
 	nx, ny := g.cat.x + dx, g.cat.y + dy
 	if is_wall(nx, ny) {
 		return
 	}
+	if i := resident_at(g, nx, ny); i >= 0 {
+		bump(g, i)
+		return
+	}
 	g.cat = {nx, ny}
 	g.energy -= 1
 	g.message = ""
-	if i := resident_at(g, nx, ny); i >= 0 {
-		g.residents[i].visited = true
-		set_message(g, "%s wants %s.", g.residents[i].name, WANT_TEXT[g.residents[i].want])
-	}
 	if g.energy <= 0 {
-		g.screen = .Ledger
+		end_day(g)
+	}
+}
+
+offer_command :: proc(g: ^Game, command: Command) {
+	count := len(Want)
+	#partial switch command {
+	case .Up:
+		g.cursor = Want((int(g.cursor) + count - 1) % count)
+	case .Down:
+		g.cursor = Want((int(g.cursor) + 1) % count)
+	case .A:
+		make_offer(g)
+	case .B:
+		g.offering = false
 	}
 }
 
@@ -77,10 +170,13 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 	switch g.screen {
 	case .Title:
 		if command == .A {
-			g.day = 1
-			start_day(g)
+			new_run(g)
 		}
 	case .Rounds:
+		if g.offering {
+			offer_command(g, command)
+			return
+		}
 		switch command {
 		case .Up:
 			try_move(g, 0, -1)
@@ -91,7 +187,7 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 		case .Left:
 			try_move(g, -1, 0)
 		case .B:
-			g.screen = .Ledger
+			end_day(g)
 		case .A:
 		}
 	case .Ledger:

@@ -38,6 +38,9 @@ Resident :: struct {
 	pos:     [2]int,
 	name:    string,
 	want:    Want,
+	mood:    int,
+	// Member of the Tuesday Indoor Tatting & Tea Interest Exchange Society.
+	member:  bool,
 	visited: bool,
 }
 
@@ -48,6 +51,11 @@ Game :: struct {
 	cat:         [2]int,
 	energy:      int,
 	residents:   [RESIDENT_COUNT]Resident,
+	purr:        int,
+	// The offer menu is open for residents[target], with the cursor on one of the four offers.
+	offering:    bool,
+	target:      int,
+	cursor:      Want,
 	message:     string,
 	message_buf: [96]u8,
 	canvas:      Canvas,

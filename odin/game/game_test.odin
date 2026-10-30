@@ -109,17 +109,141 @@ releasing_a_key_does_nothing :: proc(t: ^testing.T) {
 	testing.expect_value(t, g.cat, start)
 }
 
+// Puts the cat beside resident i, inside their window, with a known want.
+stand_beside :: proc(g: ^Game, i: int, want: Want, spent := 0) {
+	g.residents[i].want = want
+	g.energy = ENERGY_MAX - spent
+	g.cat = g.residents[i].pos - {1, 0}
+}
+
 @(test)
-stepping_on_a_resident_visits_them :: proc(t: ^testing.T) {
+bumping_a_resident_opens_the_menu_for_free :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	target := g.residents[0].pos
-	g.cat = target - {1, 0}
-	g.residents[0].visited = false
+	stand_beside(g, 0, .Lap)
+	start := g.cat
 	game_command(g, .Right, true)
-	testing.expect(t, g.residents[0].visited)
-	testing.expect(t, len(g.message) > 0)
+	testing.expect(t, g.offering)
+	testing.expect_value(t, g.target, 0)
+	testing.expect_value(t, g.cat, start)
+	testing.expect_value(t, g.energy, ENERGY_MAX)
+}
+
+@(test)
+matching_the_want_pleases_and_earns_purr :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 1, .Story, 10) // Walter is not a member
+	game_command(g, .Right, true)
+	for g.cursor != .Story {
+		game_command(g, .Down, true)
+	}
+	game_command(g, .A, true)
+	testing.expect_value(t, g.residents[1].mood, MOOD_START + 2)
+	testing.expect_value(t, g.purr, PURR_MATCH)
+	testing.expect_value(t, g.energy, ENERGY_MAX - 10 - OFFER_COST[.Story])
+	testing.expect(t, g.residents[1].visited)
+	testing.expect(t, !g.offering)
+}
+
+@(test)
+a_mismatch_hurts_and_costs_extra :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 1, .Story, 10)
+	game_command(g, .Right, true)
+	g.cursor = .Treat
+	game_command(g, .A, true)
+	testing.expect_value(t, g.residents[1].mood, MOOD_START - 1)
+	testing.expect_value(t, g.purr, 0)
+	testing.expect_value(t, g.energy, ENERGY_MAX - 10 - OFFER_COST[.Treat] - MISMATCH_EXTRA_COST)
+}
+
+@(test)
+members_earn_double_purr_at_the_meeting :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 0, .Lap) // Dolores is a member
+	game_command(g, .Right, true)
+	g.cursor = .Lap
+	game_command(g, .A, true)
+	testing.expect_value(t, g.purr, PURR_MATCH * 2)
+}
+
+@(test)
+nobody_is_visited_outside_their_window :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 3, .Lap, 0) // Mr. Lindqvist opens at 20
+	game_command(g, .Right, true)
+	testing.expect(t, !g.offering)
+	g.energy = ENERGY_MAX - 60 + 1
+	g.cat = g.residents[0].pos - {1, 0} // Dolores closes at 30
+	game_command(g, .Right, true)
+	testing.expect(t, !g.offering)
+}
+
+@(test)
+a_resident_is_visited_once_a_day :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 1, .Lap, 10)
+	game_command(g, .Right, true)
+	game_command(g, .A, true)
+	game_command(g, .Right, true)
+	testing.expect(t, !g.offering)
+}
+
+@(test)
+backing_out_of_the_menu_changes_nothing :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 1, .Lap, 10)
+	game_command(g, .Right, true)
+	game_command(g, .B, true)
+	testing.expect(t, !g.offering)
+	testing.expect(t, !g.residents[1].visited)
+	testing.expect_value(t, g.energy, ENERGY_MAX - 10)
+}
+
+@(test)
+the_unvisited_are_quieter_tomorrow :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 1, .Lap, 10)
+	game_command(g, .Right, true)
+	g.cursor = .Lap
+	game_command(g, .A, true)
+	visited_mood := g.residents[1].mood
+	game_command(g, .B, true)
+	testing.expect_value(t, g.residents[1].mood, visited_mood)
+	testing.expect_value(t, g.residents[0].mood, MOOD_START - 1)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.day, 2)
+	testing.expect(t, !g.residents[1].visited)
+	testing.expect_value(t, g.residents[0].mood, MOOD_START - 1)
+}
+
+@(test)
+a_visit_that_costs_more_than_is_left_ends_the_day :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, 3, .Lap, 58) // Mr. Lindqvist is receiving until 60; 2 energy left
+	game_command(g, .Right, true)
+	g.cursor = .Lap
+	game_command(g, .A, true)
+	testing.expect_value(t, g.screen, Screen.Ledger)
+	testing.expect_value(t, g.energy, 0)
+	testing.expect_value(t, g.purr, PURR_MATCH)
 }
 
 @(test)
@@ -184,7 +308,11 @@ fuzz_random_commands_never_break_invariants :: proc(t: ^testing.T) {
 			}
 			testing.expect(t, g.energy >= 0 && g.energy <= ENERGY_MAX)
 			testing.expect(t, !is_wall(g.cat.x, g.cat.y) || g.screen == .Title)
+			testing.expect(t, g.purr >= 0)
 			testing.expect(t, g.day >= 0 && g.day <= DAYS_PER_RUN)
+			for r in g.residents {
+				testing.expect(t, r.mood >= 0 && r.mood <= MOOD_MAX)
+			}
 		}
 	}
 }
