@@ -37,6 +37,10 @@ A therapy cat makes its afternoon rounds at a care home. Each resident wants a l
 - "Titties" seed: a running joke, as above.
 - Days per run, resolution and font were left to defaults: **5 days**, **320 by 180**, **DINOBYTE** (credit on the title screen).
 
+## Art (October 30, 2026)
+
+Urizen 1-bit tiles by vurmux (CC0) for walls, floor, furniture, the cat (1,14) and people (104,0), one hue each. The map is 26 by 13 tiles of 12 px. More TITTIES, at the user's request: the hall in the top row is the society's meeting room with its sign over the door, the three members (gold) are in it, the header says "TITTIES in session" while the meeting runs, and the ledger reports member attendance.
+
 ## Status
 
 October 30, 2026: scaffold plus core visit rules (task 345). Walking into a resident opens an offer menu (lap 6, quiet 2, story 5, treat 4 energy); a hint line gives their want away ("holding a book"). A match is +2 mood and 10 purr, a mismatch is -1 mood and 3 extra energy. Each resident has a window of energy spent when they receive visitors; members of TITTIES meet until 30 spent and pay double purr. Anyone unvisited is one mood quieter next day; moods carry across the 5-day run. 20 native tests. Not built: saves, sound, Anvil art, the garden door and lounge, residents coming and going, a final run summary.

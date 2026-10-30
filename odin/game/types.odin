@@ -25,6 +25,9 @@ Hue :: enum u8 {
 	Gold,
 	Gray,
 	Cat,
+	Shade,
+	Brick,
+	Wood,
 }
 
 Want :: enum {
@@ -37,6 +40,8 @@ Want :: enum {
 Resident :: struct {
 	pos:     [2]int,
 	name:    string,
+	// Energy spent when they start and stop receiving visitors.
+	window:  [2]int,
 	want:    Want,
 	mood:    int,
 	// Member of the Tuesday Indoor Tatting & Tea Interest Exchange Society.

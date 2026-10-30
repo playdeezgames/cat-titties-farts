@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 tools/gen_font.py
+python3 tools/gen_tiles.py
 git diff --quiet -- odin/game/font_data.odin || echo "note: odin/game/font_data.odin differs from the committed copy"
 odin test odin/game -collection:nhc=odin -o:speed -define:ODIN_TEST_THREADS=1 -vet-shadowing -vet-unused
 odin check odin/game -collection:nhc=odin -target:js_wasm32 -no-entry-point -vet-shadowing -vet-unused

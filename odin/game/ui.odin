@@ -6,26 +6,66 @@ draw_title :: proc(g: ^Game) {
 	c := &g.canvas
 	draw_text_centered(c, 52, "NURSING HOME CAT", .Cream, 3)
 	draw_text_centered(c, 84, "of SPLORR!!", .Gold, 2)
-	draw_text_centered(c, 130, "Press A to begin the rounds", .Gray)
-	draw_text_centered(c, 166, "DINOBYTE font by mby, CC BY 4.0", .Wall)
+	draw_text_centered(c, 108, "home of the TITTIES knitting circle", .Rose)
+	draw_text_centered(c, 134, "Press A to begin the rounds", .Gray)
+	draw_text_centered(c, 158, "DINOBYTE font by mby, CC BY 4.0", .Wall)
+	draw_text_centered(c, 168, "Urizen tiles by vurmux, CC0", .Wall)
 }
+
+tile_for :: proc(ch: u8) -> (tile: Tile, hue: Hue, ok: bool) {
+	switch ch {
+	case 'b':
+		return .Bed, .Wood, true
+	case 'c':
+		return .Chair, .Wood, true
+	case 't':
+		return .Table, .Wood, true
+	case 's':
+		return .Sofa, .Rose, true
+	case 'k':
+		return .Shelf, .Wood, true
+	case 'p':
+		return .Plant, .Sage, true
+	}
+	return {}, {}, false
+}
+
+// The TITTIES hall is the wide room in the top row; its sign hangs in the wall above it.
+HALL_FIRST_COLUMN :: 12
+HALL_COLUMNS :: 8
 
 draw_rounds :: proc(g: ^Game) {
 	c := &g.canvas
 	for row, y in MAP_ROWS {
 		for x in 0 ..< MAP_WIDTH {
-			hue := Hue.Wall if row[x] == '#' else Hue.Floor
-			canvas_fill(c, x * TILE, MAP_TOP + y * TILE, TILE, TILE, hue)
+			px, py := x * TILE, MAP_TOP + y * TILE
+			if row[x] == '#' {
+				canvas_fill(c, px, py, TILE, TILE, .Wall)
+				draw_tile(c, px, py, .Wall, .Brick)
+				continue
+			}
+			canvas_fill(c, px, py, TILE, TILE, .Floor)
+			draw_tile(c, px, py, .Floor, .Shade)
+			if tile, hue, ok := tile_for(row[x]); ok {
+				draw_tile(c, px, py, tile, hue)
+			}
 		}
 	}
+	sign := "TITTIES"
+	canvas_fill(c, HALL_FIRST_COLUMN * TILE, MAP_TOP, HALL_COLUMNS * TILE, TILE, .Night)
+	draw_text(c, (HALL_FIRST_COLUMN + HALL_COLUMNS / 2) * TILE - text_width(sign) / 2, MAP_TOP + 2, sign, .Gold)
 	for r in g.residents {
-		draw_char(c, r.pos.x * TILE, MAP_TOP + r.pos.y * TILE, 2, .Sage if r.visited else .Rose, 2)
+		hue := Hue.Sage if r.visited else (Hue.Gold if r.member else Hue.Rose)
+		draw_tile(c, r.pos.x * TILE, MAP_TOP + r.pos.y * TILE, .Person, hue)
 	}
-	draw_char(c, g.cat.x * TILE, MAP_TOP + g.cat.y * TILE, 'C', .Cat, 2)
+	draw_tile(c, g.cat.x * TILE, MAP_TOP + g.cat.y * TILE, .Cat, .Cat)
 
 	buf: [64]u8
 	header := fmt.bprintf(buf[:], "Day %d of %d  Energy %d  Purr %d", g.day, DAYS_PER_RUN, g.energy, g.purr)
 	draw_text(c, 2, 0, header, .Cream)
+	if energy_spent(g) < MEETING_END {
+		draw_text(c, VIEW_WIDTH - text_width("TITTIES in session") - 2, 0, "TITTIES in session", .Gold)
+	}
 	if g.offering {
 		draw_offer_menu(g)
 	}
@@ -71,6 +111,12 @@ draw_ledger :: proc(g: ^Game) {
 		draw_hearts(c, 250, y, r.mood)
 	}
 	buf: [64]u8
+	members_seen := 0
+	for r in g.residents {
+		members_seen += 1 if r.member && r.visited else 0
+	}
+	attendance := fmt.bprintf(buf[:], "TITTIES attendance: %d of %d members", members_seen, MEMBER_COUNT)
+	draw_text_centered(c, 128, attendance, .Rose)
 	total := fmt.bprintf(buf[:], "Day %d of %d  Purr %d", g.day, DAYS_PER_RUN, g.purr)
 	draw_text_centered(c, 142, total, .Gold)
 	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, "Press A", .Gold)

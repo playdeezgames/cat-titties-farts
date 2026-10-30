@@ -20,6 +20,9 @@ PALETTE := [Hue]u32 {
 	.Gold  = 0xFF5ABEEC,
 	.Gray  = 0xFF8E868C,
 	.Cat   = 0xFF3C8CE8,
+	.Shade = 0xFF7692AA,
+	.Brick = 0xFF34384E,
+	.Wood  = 0xFF325078,
 }
 
 canvas_set :: proc(c: ^Canvas, x, y: int, hue: Hue) {
@@ -66,6 +69,19 @@ draw_text :: proc(c: ^Canvas, x, y: int, text: string, hue: Hue, scale := 1) {
 
 draw_text_centered :: proc(c: ^Canvas, y: int, text: string, hue: Hue, scale := 1) {
 	draw_text(c, VIEW_WIDTH / 2 - text_width(text, scale) / 2, y, text, hue, scale)
+}
+
+// Draws the set pixels of a 12x12 Urizen tile in the hue; the rest is transparent.
+draw_tile :: proc(c: ^Canvas, x, y: int, tile: Tile, hue: Hue) {
+	glyph := &TILE_GLYPHS[tile]
+	for row in 0 ..< TILE_SIZE {
+		bits := glyph[row]
+		for col in 0 ..< TILE_SIZE {
+			if bits & (1 << uint(col)) != 0 {
+				canvas_set(c, x + col, y + row, hue)
+			}
+		}
+	}
 }
 
 canvas_to_rgba :: proc(c: ^Canvas, out: ^[VIEW_WIDTH * VIEW_HEIGHT]u32) {

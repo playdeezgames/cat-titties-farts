@@ -30,13 +30,22 @@ every_map_row_is_full_width :: proc(t: ^testing.T) {
 	}
 }
 
+by_name :: proc(g: ^Game, name: string) -> int {
+	for r, i in g.residents {
+		if r.name == name {
+			return i
+		}
+	}
+	return -1
+}
+
 @(test)
 map_has_one_start_and_the_resident_count :: proc(t: ^testing.T) {
 	starts, residents := 0, 0
 	for row in MAP_ROWS {
 		for ch in row {
 			starts += 1 if ch == 'C' else 0
-			residents += 1 if ch == 'R' else 0
+			residents += 1 if ch == 'R' || ch == 'M' else 0
 		}
 	}
 	testing.expect_value(t, starts, 1)
@@ -117,15 +126,26 @@ stand_beside :: proc(g: ^Game, i: int, want: Want, spent := 0) {
 }
 
 @(test)
+members_are_the_ones_in_the_hall :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	for r in g.residents {
+		in_hall := r.pos.x >= HALL_FIRST_COLUMN && r.pos.x < HALL_FIRST_COLUMN + HALL_COLUMNS && r.pos.y < 4
+		testing.expectf(t, r.member == in_hall, "%s", r.name)
+	}
+}
+
+@(test)
 bumping_a_resident_opens_the_menu_for_free :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 0, .Lap)
+	stand_beside(g, by_name(g, "Dolores"), .Lap)
 	start := g.cat
 	game_command(g, .Right, true)
 	testing.expect(t, g.offering)
-	testing.expect_value(t, g.target, 0)
+	testing.expect_value(t, g.target, by_name(g, "Dolores"))
 	testing.expect_value(t, g.cat, start)
 	testing.expect_value(t, g.energy, ENERGY_MAX)
 }
@@ -135,16 +155,16 @@ matching_the_want_pleases_and_earns_purr :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 1, .Story, 10) // Walter is not a member
+	stand_beside(g, by_name(g, "Walter"), .Story, 10) // Walter is not a member
 	game_command(g, .Right, true)
 	for g.cursor != .Story {
 		game_command(g, .Down, true)
 	}
 	game_command(g, .A, true)
-	testing.expect_value(t, g.residents[1].mood, MOOD_START + 2)
+	testing.expect_value(t, g.residents[by_name(g, "Walter")].mood, MOOD_START + 2)
 	testing.expect_value(t, g.purr, PURR_MATCH)
 	testing.expect_value(t, g.energy, ENERGY_MAX - 10 - OFFER_COST[.Story])
-	testing.expect(t, g.residents[1].visited)
+	testing.expect(t, g.residents[by_name(g, "Walter")].visited)
 	testing.expect(t, !g.offering)
 }
 
@@ -153,11 +173,11 @@ a_mismatch_hurts_and_costs_extra :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 1, .Story, 10)
+	stand_beside(g, by_name(g, "Walter"), .Story, 10)
 	game_command(g, .Right, true)
 	g.cursor = .Treat
 	game_command(g, .A, true)
-	testing.expect_value(t, g.residents[1].mood, MOOD_START - 1)
+	testing.expect_value(t, g.residents[by_name(g, "Walter")].mood, MOOD_START - 1)
 	testing.expect_value(t, g.purr, 0)
 	testing.expect_value(t, g.energy, ENERGY_MAX - 10 - OFFER_COST[.Treat] - MISMATCH_EXTRA_COST)
 }
@@ -167,7 +187,7 @@ members_earn_double_purr_at_the_meeting :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 0, .Lap) // Dolores is a member
+	stand_beside(g, by_name(g, "Dolores"), .Lap) // Dolores is a member
 	game_command(g, .Right, true)
 	g.cursor = .Lap
 	game_command(g, .A, true)
@@ -179,11 +199,11 @@ nobody_is_visited_outside_their_window :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 3, .Lap, 0) // Mr. Lindqvist opens at 20
+	stand_beside(g, by_name(g, "Mr. Lindqvist"), .Lap, 0) // Mr. Lindqvist opens at 20
 	game_command(g, .Right, true)
 	testing.expect(t, !g.offering)
 	g.energy = ENERGY_MAX - 60 + 1
-	g.cat = g.residents[0].pos - {1, 0} // Dolores closes at 30
+	g.cat = g.residents[by_name(g, "Dolores")].pos - {1, 0} // Dolores closes at 30
 	game_command(g, .Right, true)
 	testing.expect(t, !g.offering)
 }
@@ -193,7 +213,7 @@ a_resident_is_visited_once_a_day :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 1, .Lap, 10)
+	stand_beside(g, by_name(g, "Walter"), .Lap, 10)
 	game_command(g, .Right, true)
 	game_command(g, .A, true)
 	game_command(g, .Right, true)
@@ -205,11 +225,11 @@ backing_out_of_the_menu_changes_nothing :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 1, .Lap, 10)
+	stand_beside(g, by_name(g, "Walter"), .Lap, 10)
 	game_command(g, .Right, true)
 	game_command(g, .B, true)
 	testing.expect(t, !g.offering)
-	testing.expect(t, !g.residents[1].visited)
+	testing.expect(t, !g.residents[by_name(g, "Walter")].visited)
 	testing.expect_value(t, g.energy, ENERGY_MAX - 10)
 }
 
@@ -218,18 +238,18 @@ the_unvisited_are_quieter_tomorrow :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 1, .Lap, 10)
+	stand_beside(g, by_name(g, "Walter"), .Lap, 10)
 	game_command(g, .Right, true)
 	g.cursor = .Lap
 	game_command(g, .A, true)
-	visited_mood := g.residents[1].mood
+	visited_mood := g.residents[by_name(g, "Walter")].mood
 	game_command(g, .B, true)
-	testing.expect_value(t, g.residents[1].mood, visited_mood)
-	testing.expect_value(t, g.residents[0].mood, MOOD_START - 1)
+	testing.expect_value(t, g.residents[by_name(g, "Walter")].mood, visited_mood)
+	testing.expect_value(t, g.residents[by_name(g, "Dolores")].mood, MOOD_START - 1)
 	game_command(g, .A, true)
 	testing.expect_value(t, g.day, 2)
-	testing.expect(t, !g.residents[1].visited)
-	testing.expect_value(t, g.residents[0].mood, MOOD_START - 1)
+	testing.expect(t, !g.residents[by_name(g, "Walter")].visited)
+	testing.expect_value(t, g.residents[by_name(g, "Dolores")].mood, MOOD_START - 1)
 }
 
 @(test)
@@ -237,7 +257,7 @@ a_visit_that_costs_more_than_is_left_ends_the_day :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
 	begin(g)
-	stand_beside(g, 3, .Lap, 58) // Mr. Lindqvist is receiving until 60; 2 energy left
+	stand_beside(g, by_name(g, "Mr. Lindqvist"), .Lap, 58) // Mr. Lindqvist is receiving until 60; 2 energy left
 	game_command(g, .Right, true)
 	g.cursor = .Lap
 	game_command(g, .A, true)

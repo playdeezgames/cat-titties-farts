@@ -1,35 +1,44 @@
 package game
 
-// One floor of the home. '#' wall, '.' floor, 'R' a resident (standing on floor), 'C' where the cat starts.
-MAP_WIDTH :: 20
-MAP_HEIGHT :: 10
-TILE :: 16
+// One floor of the home. '#' wall, '.' floor, 'R' a resident, 'M' a TITTIES member (the hall in the middle of the
+// top row is their meeting room), 'C' where the cat starts. Furniture blocks: b bed, c chair, t table, s sofa,
+// k shelf, p plant.
+MAP_WIDTH :: 26
+MAP_HEIGHT :: 13
+TILE :: TILE_SIZE
 MAP_TOP :: 8
 
 MAP_ROWS := [MAP_HEIGHT]string {
-	"####################",
-	"#R...#...R#..R..#R.#",
-	"#....#....#.....#..#",
-	"##.####.#####.####.#",
-	"#........C.........#",
-	"#..................#",
-	"##.###.#######.##.##",
-	"#....#.....R.#...R.#",
-	"#R...#.......#.....#",
-	"####################",
+	"##########################",
+	"#R.b.#k...R#M..t..M.#R.p.#",
+	"#....#.....#.c.M.c..#....#",
+	"#b...#k....#........#...p#",
+	"##.#####.######..#####.###",
+	"#...p...............p....#",
+	"#............C...........#",
+	"#....c.............c.....#",
+	"###.########.#########.###",
+	"#b...b.#sss.......#c.t.c.#",
+	"#......#.....R....#......#",
+	"#.p..p.#k........k#..b..b#",
+	"##########################",
 }
 
 RESIDENT_COUNT :: 7
 ENERGY_MAX :: 60
 DAYS_PER_RUN :: 5
 
-RESIDENT_NAMES := [RESIDENT_COUNT]string{"Dolores", "Walter", "Mrs. Okafor", "Mr. Lindqvist", "Bernice", "Mrs. Abernathy", "Harold"}
+MEMBER_COUNT :: 3
+OTHER_COUNT :: RESIDENT_COUNT - MEMBER_COUNT
+// Handed out in the order the residents appear on the map (rows top to bottom, then left to right).
+MEMBER_NAMES := [MEMBER_COUNT]string{"Dolores", "Mrs. Okafor", "Bernice"}
+OTHER_NAMES := [OTHER_COUNT]string{"Walter", "Mr. Lindqvist", "Mrs. Abernathy", "Harold"}
 
 MOOD_START :: 3
 MOOD_MAX :: 5
-// A resident only receives visitors while the energy spent so far is inside their window.
-RESIDENT_WINDOWS := [RESIDENT_COUNT][2]int{{0, 30}, {10, 50}, {0, 30}, {20, 60}, {0, 30}, {30, 60}, {15, 45}}
-RESIDENT_MEMBER := [RESIDENT_COUNT]bool{true, false, true, false, true, false, false}
+// Non-members only receive visitors while the energy spent so far is inside their window. Members meet in the hall
+// from the start of the day until MEETING_END.
+OTHER_WINDOWS := [OTHER_COUNT][2]int{{10, 50}, {20, 60}, {30, 60}, {15, 45}}
 // Members meet until this much energy is spent; a matched visit then earns double purr.
 MEETING_END :: 30
 PURR_MATCH :: 10
@@ -69,5 +78,9 @@ is_wall :: proc(x, y: int) -> bool {
 	if x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT {
 		return true
 	}
-	return MAP_ROWS[y][x] == '#'
+	switch MAP_ROWS[y][x] {
+	case '#', 'b', 'c', 't', 's', 'k', 'p':
+		return true
+	}
+	return false
 }

@@ -16,18 +16,28 @@ set_message :: proc(g: ^Game, format: string, args: ..any) {
 new_run :: proc(g: ^Game) {
 	g.day = 1
 	g.purr = 0
-	index := 0
+	index, members, others := 0, 0, 0
 	for row, y in MAP_ROWS {
 		for ch, x in row {
-			if ch == 'R' {
-				g.residents[index] = Resident {
-					pos    = {x, y},
-					name   = RESIDENT_NAMES[index],
-					mood   = MOOD_START,
-					member = RESIDENT_MEMBER[index],
-				}
-				index += 1
+			if ch != 'R' && ch != 'M' {
+				continue
 			}
+			r := Resident {
+				pos  = {x, y},
+				mood = MOOD_START,
+			}
+			if ch == 'M' {
+				r.member = true
+				r.name = MEMBER_NAMES[members]
+				r.window = {0, MEETING_END}
+				members += 1
+			} else {
+				r.name = OTHER_NAMES[others]
+				r.window = OTHER_WINDOWS[others]
+				others += 1
+			}
+			g.residents[index] = r
+			index += 1
 		}
 	}
 	start_day(g)
@@ -36,7 +46,7 @@ new_run :: proc(g: ^Game) {
 start_day :: proc(g: ^Game) {
 	g.screen = .Rounds
 	g.energy = ENERGY_MAX
-	g.message = ""
+	set_message(g, "TITTIES meets in the hall until %d energy is spent.", MEETING_END)
 	g.offering = false
 	for row, y in MAP_ROWS {
 		for ch, x in row {
@@ -90,7 +100,7 @@ visited_count :: proc(g: ^Game) -> int {
 bump :: proc(g: ^Game, i: int) {
 	r := &g.residents[i]
 	spent := energy_spent(g)
-	window := RESIDENT_WINDOWS[i]
+	window := r.window
 	switch {
 	case r.visited:
 		set_message(g, "%s has had a visit today.", r.name)
