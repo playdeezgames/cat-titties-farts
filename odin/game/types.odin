@@ -80,6 +80,12 @@ Game :: struct {
 	// Visits paid to TITTIES members this run (for the annual report).
 	member_visits: int,
 	// The offer menu is open for residents[target], with the cursor on one of the four offers.
+	// 0 when closed, else the 1-based page of the how-to-play booklet being read.
+	help_page:   int,
+	// The player pressed B: waiting for A (nap, ending the day) or B (carry on).
+	confirming_nap: bool,
+	// Set when this browser has not seen the booklet yet; it opens on the first run.
+	show_help_first: bool,
 	offering:    bool,
 	target:      int,
 	cursor:      Want,

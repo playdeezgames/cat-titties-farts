@@ -1,6 +1,7 @@
 #+build !js
 package game
 
+import "core:strings"
 import "core:testing"
 
 new_game :: proc(seed: u64 = 1) -> ^Game {
@@ -9,20 +10,36 @@ new_game :: proc(seed: u64 = 1) -> ^Game {
 	return g
 }
 
+// Starts a run. The first run in a fresh browser opens the how-to-play booklet; close it so the test can play.
 begin :: proc(g: ^Game) {
+	game_command(g, .A, true)
+	g.help_page = 0
+}
+
+// B asks whether to nap, A says yes: the day ends.
+nap :: proc(g: ^Game) {
+	game_command(g, .B, true)
 	game_command(g, .A, true)
 }
 
-// An in-memory stand-in for the browser's localStorage (tests run on one thread).
+// An in-memory stand-in for the browser's localStorage, two keys (tests run on one thread).
 test_saved: [512]u8
 test_saved_len: int
 test_save_found: bool
+test_seen_found: bool
 
 test_get :: proc(key: string) -> (string, bool) {
+	if key == SEEN_KEY {
+		return "1", test_seen_found
+	}
 	return string(test_saved[:test_saved_len]), test_save_found
 }
 
 test_set :: proc(key: string, value: string) {
+	if key == SEEN_KEY {
+		test_seen_found = true
+		return
+	}
 	test_saved_len = copy(test_saved[:], value)
 	test_save_found = true
 }
@@ -30,6 +47,7 @@ test_set :: proc(key: string, value: string) {
 reset_test_storage :: proc() {
 	test_saved_len = 0
 	test_save_found = false
+	test_seen_found = false
 }
 
 game_with_storage :: proc(seed: u64 = 1) -> ^Game {
@@ -51,7 +69,7 @@ a_run_is_saved_at_the_start_of_each_day_and_can_be_continued :: proc(t: ^testing
 	game_command(g, .Right, true)
 	g.cursor = .Treat
 	game_command(g, .A, true)
-	game_command(g, .B, true)
+	nap(g)
 	game_command(g, .A, true)
 	testing.expect_value(t, g.day, 2)
 
@@ -79,7 +97,7 @@ b_on_the_title_starts_a_new_run_over_the_save :: proc(t: ^testing.T) {
 	g := game_with_storage()
 	defer free(g)
 	begin(g)
-	game_command(g, .B, true)
+	nap(g)
 	game_command(g, .A, true)
 	testing.expect_value(t, g.day, 2)
 
@@ -109,7 +127,7 @@ finishing_the_run_clears_the_save :: proc(t: ^testing.T) {
 	defer free(g)
 	begin(g)
 	for _ in 1 ..= DAYS_PER_RUN {
-		game_command(g, .B, true)
+		nap(g)
 		game_command(g, .A, true)
 	}
 	testing.expect_value(t, g.screen, Screen.Title)
@@ -153,6 +171,99 @@ damaged_saves_are_refused :: proc(t: ^testing.T) {
 	testing.expect(t, !h.saved)
 	begin(h)
 	testing.expect_value(t, h.screen, Screen.Rounds)
+}
+
+@(test)
+every_help_page_fits_the_screen :: proc(t: ^testing.T) {
+	for page in 0 ..< HELP_PAGES {
+		lines: [HELP_LINES + 10]string
+		n := wrap_text(HELP_TEXT[page], HELP_WIDTH, lines[:])
+		testing.expectf(t, n <= HELP_LINES, "page %d needs %d lines", page + 1, n)
+		for i in 0 ..< n {
+			testing.expectf(t, len(lines[i]) <= HELP_WIDTH, "page %d line %d is %d wide", page + 1, i, len(lines[i]))
+		}
+		testing.expect(t, text_width(HELP_TITLES[page]) < VIEW_WIDTH)
+	}
+}
+
+@(test)
+wrap_breaks_at_spaces_and_newlines :: proc(t: ^testing.T) {
+	lines: [8]string
+	n := wrap_text("one two three\nfour", 8, lines[:])
+	testing.expect_value(t, n, 3)
+	testing.expect_value(t, lines[0], "one two")
+	testing.expect_value(t, lines[1], "three")
+	testing.expect_value(t, lines[2], "four")
+}
+
+@(test)
+a_opens_the_booklet_while_walking_and_it_costs_nothing :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	start, energy := g.cat, g.energy
+	game_command(g, .A, true)
+	testing.expect_value(t, g.help_page, 1)
+	game_command(g, .Up, true) // walking is paused while reading
+	game_command(g, .Left, true)
+	testing.expect_value(t, g.cat, start)
+	for page in 2 ..= HELP_PAGES {
+		game_command(g, .A, true)
+		testing.expect_value(t, g.help_page, page)
+	}
+	game_command(g, .Left, true)
+	testing.expect_value(t, g.help_page, HELP_PAGES - 1)
+	game_command(g, .B, true)
+	testing.expect_value(t, g.help_page, 0)
+	testing.expect_value(t, g.energy, energy)
+	game_command(g, .A, true)
+	for _ in 0 ..< HELP_PAGES {
+		game_command(g, .A, true)
+	}
+	testing.expect_value(t, g.help_page, 0)
+}
+
+@(test)
+b_asks_before_napping :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	game_command(g, .B, true)
+	testing.expect(t, g.confirming_nap)
+	testing.expect_value(t, g.screen, Screen.Rounds)
+	game_command(g, .B, true)
+	testing.expect(t, !g.confirming_nap)
+	testing.expect_value(t, g.screen, Screen.Rounds)
+	game_command(g, .B, true)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.screen, Screen.Ledger)
+}
+
+@(test)
+the_booklet_opens_by_itself_on_the_first_run_only :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.help_page, 1)
+	h := game_with_storage(2)
+	defer free(h)
+	testing.expect(t, !h.show_help_first)
+	game_command(h, .B, true) // a saved run exists: B starts a new one
+	testing.expect_value(t, h.help_page, 0)
+}
+
+@(test)
+a_closed_resident_says_when_they_receive :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, by_name(g, "Mr. Lindqvist"), .Lap, 0) // opens when 20 energy has been spent
+	game_command(g, .Right, true)
+	testing.expect(t, strings.contains(g.message, "Opens at energy 40"))
+	stand_beside(g, by_name(g, "Dolores"), .Lap, 45) // the meeting ended at 30 spent
+	game_command(g, .Right, true)
+	testing.expect(t, strings.contains(g.message, "Closed at energy 30"))
 }
 
 @(test)
@@ -383,7 +494,7 @@ sounds_follow_the_events :: proc(t: ^testing.T) {
 	testing.expect(t, has_sfx(g, .Content))
 	testing.expect(t, !has_sfx(g, .Fart))
 	g.sfx_count = 0
-	game_command(g, .B, true)
+	nap(g)
 	testing.expect(t, has_sfx(g, .Day_End))
 }
 
@@ -498,7 +609,7 @@ the_unvisited_are_quieter_tomorrow :: proc(t: ^testing.T) {
 	g.cursor = .Lap
 	game_command(g, .A, true)
 	visited_mood := g.residents[by_name(g, "Walter")].mood
-	game_command(g, .B, true)
+	nap(g)
 	testing.expect_value(t, g.residents[by_name(g, "Walter")].mood, visited_mood)
 	testing.expect_value(t, g.residents[by_name(g, "Dolores")].mood, MOOD_START - 1)
 	game_command(g, .A, true)
@@ -543,7 +654,7 @@ a_run_lasts_the_set_number_of_days :: proc(t: ^testing.T) {
 	begin(g)
 	for day in 1 ..= DAYS_PER_RUN {
 		testing.expect_value(t, g.day, day)
-		game_command(g, .B, true)
+		nap(g)
 		testing.expect_value(t, g.screen, Screen.Ledger)
 		game_command(g, .A, true)
 	}

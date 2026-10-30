@@ -12,6 +12,8 @@ Storage :: struct {
 
 SAVE_KEY :: "nhc:run"
 SAVE_TAG :: "nhc1"
+// Set once the how-to-play booklet has opened by itself, so it does not come back every run.
+SEEN_KEY :: "nhc:seen"
 
 // A run is saved at the start of each day, so continuing restarts that day: same wants, full energy.
 SaveData :: struct {

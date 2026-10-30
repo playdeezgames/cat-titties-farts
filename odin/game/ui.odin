@@ -6,7 +6,7 @@ draw_title :: proc(g: ^Game) {
 	c := &g.canvas
 	draw_text_centered(c, 52, "NURSING HOME CAT", .Cream, 3)
 	draw_text_centered(c, 84, "of SPLORR!!", .Gold, 2)
-	draw_text_centered(c, 108, "home of the TITTIES knitting circle", .Rose)
+	draw_text_centered(c, 108, "home of the TITTIES", .Rose)
 	if g.saved {
 		buf: [64]u8
 		draw_text_centered(c, 128, fmt.bprintf(buf[:], "A: continue day %d (the day starts over)", g.save.day), .Gray)
@@ -74,7 +74,15 @@ draw_rounds :: proc(g: ^Game) {
 	if g.offering {
 		draw_offer_menu(g)
 	}
-	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, g.message if g.message != "" else "Arrows move. Walk into someone to visit. B naps.", .Gold)
+	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, g.message if g.message != "" else "Walk into a resident to visit.  A: help", .Gold)
+	if g.confirming_nap {
+		draw_box(c, 56, 64, 208, 40)
+		draw_text_centered(c, 72, "Nap now and end the day?", .Cream)
+		draw_text_centered(c, 88, "A: nap    B: keep going", .Gold)
+	}
+	if g.help_page > 0 {
+		draw_help(g)
+	}
 }
 
 draw_hearts :: proc(c: ^Canvas, x, y, mood: int) {
@@ -131,4 +139,56 @@ draw_ledger :: proc(g: ^Game) {
 	draw_text_centered(c, 154, MINUTES[clamp(g.day, 1, DAYS_PER_RUN) - 1], .Cream)
 	draw_text_centered(c, 142, total, .Gold)
 	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, "Press A", .Gold)
+}
+
+draw_box :: proc(c: ^Canvas, x, y, w, h: int) {
+	canvas_fill(c, x - 2, y - 2, w + 4, h + 4, .Cream)
+	canvas_fill(c, x, y, w, h, .Night)
+}
+
+// Breaks text into lines of at most `width` characters at spaces; "\n" forces a break. Returns the line count.
+// Lines are slices of text, so nothing is copied.
+wrap_text :: proc(text: string, width: int, lines: []string) -> int {
+	count := 0
+	start := 0
+	for start < len(text) && count < len(lines) {
+		end := start
+		last_space := -1
+		for end < len(text) && end - start < width && text[end] != '\n' {
+			if text[end] == ' ' {
+				last_space = end
+			}
+			end += 1
+		}
+		next := end
+		if end < len(text) && text[end] != '\n' && last_space >= 0 {
+			end = last_space
+			next = last_space + 1
+		} else if end < len(text) && text[end] == '\n' {
+			next = end + 1
+		}
+		lines[count] = text[start:end]
+		count += 1
+		start = next
+	}
+	return count
+}
+
+HELP_WIDTH :: 46
+HELP_LINES :: 14
+
+draw_help :: proc(g: ^Game) {
+	c := &g.canvas
+	canvas_clear(c, .Night)
+	draw_box(c, 8, 6, VIEW_WIDTH - 16, VIEW_HEIGHT - 12)
+	buf: [64]u8
+	title := fmt.bprintf(buf[:], "HOW TO PLAY  %d/%d: %s", g.help_page, HELP_PAGES, HELP_TITLES[g.help_page - 1])
+	draw_text_centered(c, 12, title, .Gold)
+	lines: [HELP_LINES]string
+	n := wrap_text(HELP_TEXT[g.help_page - 1], HELP_WIDTH, lines[:])
+	for i in 0 ..< n {
+		draw_text(c, 20, 28 + i * 10, lines[i], .Cream)
+	}
+	more := "A: next page    B: close" if g.help_page < HELP_PAGES else "A: close    B: close"
+	draw_text_centered(c, VIEW_HEIGHT - 20, more, .Gray)
 }

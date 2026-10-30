@@ -49,6 +49,10 @@ Eight square-wave sounds made in the Anvil (`assets/anvil/world.json` holds the 
 
 The run is saved to localStorage (`nhc:run`, one line of text) at the start of every day: day, purr, member visits, the RNG state, every resident's mood and want. The title offers "A: continue day N (the day starts over)" and "B: new run". Finishing day 5 clears the save. A damaged or out-of-range save is refused and the game starts clean. Mid-day state is deliberately not saved: continuing restarts the day with the same wants and full energy.
 
+## Playtest feedback and onboarding (October 30, 2026)
+
+First blind playtests: "What the fuck is happening?!", "this one MIGHT need a booklet", "this shit needs a novel, not a booklet"; the user could not tell what to do either. Response: a five-page how-to-play booklet (the job, visiting, when residents receive, the TITTIES, keys) that opens by itself on a browser's first run and from A while walking; closed residents now say at what energy they open or closed; B asks before napping (it ends the day); the bottom line says "A: help". The booklet is the minimum; the game still teaches little by itself (see open question: a guided first day).
+
 ## Status
 
 October 30, 2026: scaffold plus core visit rules (task 345). Walking into a resident opens an offer menu (lap 6, quiet 2, story 5, treat 4 energy); a hint line gives their want away ("holding a book"). A match is +2 mood and 10 purr, a mismatch is -1 mood and 3 extra energy. Each resident has a window of energy spent when they receive visitors; members of TITTIES meet until 30 spent and pay double purr. Anyone unvisited is one mood quieter next day; moods carry across the 5-day run. 20 native tests. Not built: saves, sound, Anvil art, the garden door and lounge, residents coming and going, a final run summary.

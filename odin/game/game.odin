@@ -8,6 +8,10 @@ game_init :: proc(g: ^Game, seed: u64, storage: Storage = {}) {
 	rng_seed(&g.rng, seed)
 	g.screen = .Title
 	find_save(g)
+	if storage.get != nil {
+		_, seen := storage.get(SEEN_KEY)
+		g.show_help_first = !seen
+	}
 }
 
 play :: proc(g: ^Game, sfx: Sfx) {
@@ -56,6 +60,13 @@ new_run :: proc(g: ^Game) {
 	g.member_visits = 0
 	setup_residents(g)
 	start_day(g)
+	if g.show_help_first {
+		g.show_help_first = false
+		g.help_page = 1
+		if g.storage.set != nil {
+			g.storage.set(SEEN_KEY, "1")
+		}
+	}
 }
 
 // Picks up the saved run at the start of the day it was saved on.
@@ -101,6 +112,8 @@ start_day :: proc(g: ^Game) {
 // Anyone left unvisited is a little quieter tomorrow.
 end_day :: proc(g: ^Game) {
 	g.offering = false
+	g.confirming_nap = false
+	g.help_page = 0
 	g.energy = max(g.energy, 0)
 	play(g, .Day_End)
 	for &r in g.residents {
@@ -144,10 +157,10 @@ bump :: proc(g: ^Game, i: int) {
 		set_message(g, "%s has had a visit today.", r.name)
 		play(g, .Bump)
 	case spent < window[0]:
-		set_message(g, "%s is not receiving yet.", r.name)
+		set_message(g, "%s is not receiving yet. Opens at energy %d.", r.name, ENERGY_MAX - window[0])
 		play(g, .Bump)
 	case spent >= window[1]:
-		set_message(g, "%s is no longer receiving.", r.name)
+		set_message(g, "%s is no longer receiving. Closed at energy %d.", r.name, ENERGY_MAX - window[1])
 		play(g, .Bump)
 	case:
 		play(g, .Blip)
@@ -218,6 +231,17 @@ try_move :: proc(g: ^Game, dx, dy: int) {
 	}
 }
 
+help_command :: proc(g: ^Game, command: Command) {
+	#partial switch command {
+	case .A, .Right:
+		g.help_page = g.help_page + 1 if g.help_page < HELP_PAGES else 0
+	case .Left:
+		g.help_page = max(g.help_page - 1, 1)
+	case .B:
+		g.help_page = 0
+	}
+}
+
 offer_command :: proc(g: ^Game, command: Command) {
 	count := len(Want)
 	#partial switch command {
@@ -253,6 +277,20 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 			}
 		}
 	case .Rounds:
+		if g.help_page > 0 {
+			help_command(g, command)
+			return
+		}
+		if g.confirming_nap {
+			#partial switch command {
+			case .A:
+				g.confirming_nap = false
+				end_day(g)
+			case .B:
+				g.confirming_nap = false
+			}
+			return
+		}
 		if g.offering {
 			offer_command(g, command)
 			return
@@ -267,8 +305,9 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 		case .Left:
 			try_move(g, -1, 0)
 		case .B:
-			end_day(g)
+			g.confirming_nap = true
 		case .A:
+			g.help_page = 1
 		}
 	case .Ledger:
 		if command == .A {
