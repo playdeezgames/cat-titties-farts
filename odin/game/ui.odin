@@ -21,11 +21,11 @@ tile_for :: proc(ch: u8) -> (tile: Tile, hue: Hue, ok: bool) {
 	case 't':
 		return .Table, .Wood, true
 	case 's':
-		return .Sofa, .Rose, true
+		return .Sofa, .Plum, true
 	case 'k':
 		return .Shelf, .Wood, true
 	case 'p':
-		return .Plant, .Sage, true
+		return .Plant, .Leaf, true
 	}
 	return {}, {}, false
 }
@@ -45,7 +45,6 @@ draw_rounds :: proc(g: ^Game) {
 				continue
 			}
 			canvas_fill(c, px, py, TILE, TILE, .Floor)
-			draw_tile(c, px, py, .Floor, .Shade)
 			if tile, hue, ok := tile_for(row[x]); ok {
 				draw_tile(c, px, py, tile, hue)
 			}
@@ -55,7 +54,7 @@ draw_rounds :: proc(g: ^Game) {
 	canvas_fill(c, HALL_FIRST_COLUMN * TILE, MAP_TOP, HALL_COLUMNS * TILE, TILE, .Night)
 	draw_text(c, (HALL_FIRST_COLUMN + HALL_COLUMNS / 2) * TILE - text_width(sign) / 2, MAP_TOP + 2, sign, .Gold)
 	for r in g.residents {
-		hue := Hue.Sage if r.visited else (Hue.Gold if r.member else Hue.Rose)
+		hue := Hue.Leaf if r.visited else (Hue.Teal if r.member else Hue.Plum)
 		draw_tile(c, r.pos.x * TILE, MAP_TOP + r.pos.y * TILE, .Person, hue)
 	}
 	draw_tile(c, g.cat.x * TILE, MAP_TOP + g.cat.y * TILE, .Cat, .Cat)
@@ -117,7 +116,13 @@ draw_ledger :: proc(g: ^Game) {
 	}
 	attendance := fmt.bprintf(buf[:], "TITTIES attendance: %d of %d members", members_seen, MEMBER_COUNT)
 	draw_text_centered(c, 128, attendance, .Rose)
-	total := fmt.bprintf(buf[:], "Day %d of %d  Purr %d", g.day, DAYS_PER_RUN, g.purr)
+	total: string
+	if g.day >= DAYS_PER_RUN {
+		total = fmt.bprintf(buf[:], "TITTIES annual report: %d member visits, %d purr", g.member_visits, g.purr)
+	} else {
+		total = fmt.bprintf(buf[:], "Day %d of %d  Purr %d", g.day, DAYS_PER_RUN, g.purr)
+	}
+	draw_text_centered(c, 154, MINUTES[clamp(g.day, 1, DAYS_PER_RUN) - 1], .Cream)
 	draw_text_centered(c, 142, total, .Gold)
 	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, "Press A", .Gold)
 }

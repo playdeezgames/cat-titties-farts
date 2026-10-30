@@ -41,6 +41,15 @@ MOOD_MAX :: 5
 OTHER_WINDOWS := [OTHER_COUNT][2]int{{10, 50}, {20, 60}, {30, 60}, {15, 45}}
 // Members meet until this much energy is spent; a matched visit then earns double purr.
 MEETING_END :: 30
+
+// The society's secretary takes minutes every day; each fits on one line of the ledger.
+MINUTES := [DAYS_PER_RUN]string {
+	"Minutes: Item 1, the name. Item 1 carried again.",
+	"Minutes: Tatting motion passed. Nurse left room.",
+	"Minutes: Biscuits were discussed at length.",
+	"Minutes: New signage. Nurse asked to be excused.",
+	"Minutes: Annual report. Nurse is still laughing.",
+}
 PURR_MATCH :: 10
 MISMATCH_EXTRA_COST :: 3
 

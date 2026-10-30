@@ -23,6 +23,9 @@ PALETTE := [Hue]u32 {
 	.Shade = 0xFF7692AA,
 	.Brick = 0xFF34384E,
 	.Wood  = 0xFF325078,
+	.Leaf  = 0xFF3C6E28,
+	.Plum  = 0xFF5A32A0,
+	.Teal  = 0xFF826E1E,
 }
 
 canvas_set :: proc(c: ^Canvas, x, y: int, hue: Hue) {

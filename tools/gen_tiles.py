@@ -13,7 +13,6 @@ sheet = Image.open(os.path.join(root, "assets", "tiles", "urizen_onebit_tileset_
 # name -> (col, row) on the sheet. Order here is the order of the Odin enum.
 TILES = [
     ("Wall", (0, 3)),     # red brick
-    ("Floor", (5, 5)),    # tan paving
     ("Bed", (1, 36)),
     ("Chair", (15, 36)),
     ("Table", (15, 35)),

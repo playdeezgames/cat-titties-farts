@@ -16,6 +16,7 @@ set_message :: proc(g: ^Game, format: string, args: ..any) {
 new_run :: proc(g: ^Game) {
 	g.day = 1
 	g.purr = 0
+	g.member_visits = 0
 	index, members, others := 0, 0, 0
 	for row, y in MAP_ROWS {
 		for ch, x in row {
@@ -122,6 +123,9 @@ make_offer :: proc(g: ^Game) {
 	cost := OFFER_COST[g.cursor]
 	g.offering = false
 	r.visited = true
+	if r.member {
+		g.member_visits += 1
+	}
 	if g.cursor == r.want {
 		r.mood = min(r.mood + 2, MOOD_MAX)
 		gain := PURR_MATCH * 2 if meeting else PURR_MATCH

@@ -39,7 +39,7 @@ A therapy cat makes its afternoon rounds at a care home. Each resident wants a l
 
 ## Art (October 30, 2026)
 
-Urizen 1-bit tiles by vurmux (CC0) for walls, floor, furniture, the cat (1,14) and people (104,0), one hue each. The map is 26 by 13 tiles of 12 px. More TITTIES, at the user's request: the hall in the top row is the society's meeting room with its sign over the door, the three members (gold) are in it, the header says "TITTIES in session" while the meeting runs, and the ledger reports member attendance.
+Urizen 1-bit tiles by vurmux (CC0) for walls, floor, furniture, the cat (1,14) and people (104,0), one hue each. The map is 26 by 13 tiles of 12 px. More TITTIES, at the user's request: the hall in the top row is the society's meeting room with its sign over the door, the three members (gold) are in it, the header says "TITTIES in session" while the meeting runs, the ledger reports member attendance and carries the secretary's minutes (one deadpan line per day, the night nurse always in them), and day 5 ends with the TITTIES annual report. Floor is plain and objects use dark hues (plum, leaf green, teal for members) so they read against the tan.
 
 ## Status
 

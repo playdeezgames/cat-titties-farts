@@ -195,6 +195,29 @@ members_earn_double_purr_at_the_meeting :: proc(t: ^testing.T) {
 }
 
 @(test)
+member_visits_are_counted_for_the_annual_report :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	stand_beside(g, by_name(g, "Dolores"), .Lap)
+	game_command(g, .Right, true)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.member_visits, 1)
+	stand_beside(g, by_name(g, "Walter"), .Lap, 10)
+	game_command(g, .Right, true)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.member_visits, 1)
+}
+
+@(test)
+every_ledger_line_fits_the_screen :: proc(t: ^testing.T) {
+	for line in MINUTES {
+		testing.expectf(t, text_width(line) <= VIEW_WIDTH, "%s", line)
+	}
+	testing.expect(t, text_width("TITTIES annual report: 99 member visits, 9999 purr") <= VIEW_WIDTH)
+}
+
+@(test)
 nobody_is_visited_outside_their_window :: proc(t: ^testing.T) {
 	g := new_game()
 	defer free(g)
