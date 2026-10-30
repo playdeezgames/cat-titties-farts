@@ -217,6 +217,96 @@ every_ledger_line_fits_the_screen :: proc(t: ^testing.T) {
 	testing.expect(t, text_width("TITTIES annual report: 99 member visits, 9999 purr") <= VIEW_WIDTH)
 }
 
+has_sfx :: proc(g: ^Game, sfx: Sfx) -> bool {
+	for i in 0 ..< g.sfx_count {
+		if g.sfx[i] == sfx {
+			return true
+		}
+	}
+	return false
+}
+
+@(test)
+sounds_follow_the_events :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	testing.expect(t, has_sfx(g, .Bell))
+	g.sfx_count = 0
+	stand_beside(g, by_name(g, "Walter"), .Story, 10)
+	game_command(g, .Right, true)
+	testing.expect(t, has_sfx(g, .Blip))
+	g.cursor = .Story
+	game_command(g, .A, true)
+	testing.expect(t, has_sfx(g, .Content))
+	testing.expect(t, !has_sfx(g, .Fart))
+	g.sfx_count = 0
+	game_command(g, .B, true)
+	testing.expect(t, has_sfx(g, .Day_End))
+}
+
+@(test)
+only_lap_visits_ever_fart :: proc(t: ^testing.T) {
+	farts_on_lap, farts_on_story := 0, 0
+	for seed in 0 ..< u64(60) {
+		for want in ([2]Want{.Lap, .Story}) {
+			g := new_game(seed)
+			begin(g)
+			stand_beside(g, by_name(g, "Walter"), want, 10)
+			game_command(g, .Right, true)
+			g.cursor = want
+			game_command(g, .A, true)
+			if has_sfx(g, .Fart) {
+				if want == .Lap {
+					farts_on_lap += 1
+				} else {
+					farts_on_story += 1
+				}
+			}
+			free(g)
+		}
+	}
+	testing.expect(t, farts_on_lap > 0 && farts_on_lap < 60)
+	testing.expect_value(t, farts_on_story, 0)
+}
+
+@(test)
+a_fart_only_bothers_someone_who_wanted_quiet :: proc(t: ^testing.T) {
+	for seed in 0 ..< u64(200) {
+		g := new_game(seed)
+		begin(g)
+		w := by_name(g, "Walter")
+		stand_beside(g, w, .Lap, 10)
+		game_command(g, .Right, true)
+		g.cursor = .Lap
+		game_command(g, .A, true)
+		testing.expect_value(t, g.residents[w].mood, MOOD_START + 2) // matched; the want is a lap, so no one minds
+		free(g)
+	}
+}
+
+@(test)
+someone_who_wanted_quiet_minds_the_fart :: proc(t: ^testing.T) {
+	minded := 0
+	for seed in 0 ..< u64(200) {
+		g := new_game(seed)
+		begin(g)
+		w := by_name(g, "Walter")
+		stand_beside(g, w, .Quiet, 10)
+		game_command(g, .Right, true)
+		g.cursor = .Lap // a mismatch: -1 mood
+		game_command(g, .A, true)
+		if has_sfx(g, .Fart) {
+			minded += 1
+			testing.expect_value(t, g.residents[w].mood, MOOD_START - 2)
+		} else {
+			testing.expect_value(t, g.residents[w].mood, MOOD_START - 1)
+		}
+		free(g)
+	}
+	testing.expect(t, minded > 0)
+}
+
 @(test)
 nobody_is_visited_outside_their_window :: proc(t: ^testing.T) {
 	g := new_game()

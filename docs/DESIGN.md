@@ -41,6 +41,10 @@ A therapy cat makes its afternoon rounds at a care home. Each resident wants a l
 
 Urizen 1-bit tiles by vurmux (CC0) for walls, floor, furniture, the cat (1,14) and people (104,0), one hue each. The map is 26 by 13 tiles of 12 px. More TITTIES, at the user's request: the hall in the top row is the society's meeting room with its sign over the door, the three members (gold) are in it, the header says "TITTIES in session" while the meeting runs, the ledger reports member attendance and carries the secretary's minutes (one deadpan line per day, the night nurse always in them), and day 5 ends with the TITTIES annual report. Floor is plain and objects use dark hues (plum, leaf green, teal for members) so they read against the tan.
 
+## Sound (October 30, 2026)
+
+Eight square-wave sounds made in the Anvil (`assets/anvil/world.json` holds the PLAY text; WAVs in `assets/sfx/`): purr (a matched lap), content (any other match), wrong, bell (the TITTIES meeting opens each day), blip (menu), bump (someone not receiving), day_end and fart. The farts are in the game now: one lap visit in four ends in one, and only a resident who wanted quiet minds (-1 mood).
+
 ## Status
 
 October 30, 2026: scaffold plus core visit rules (task 345). Walking into a resident opens an offer menu (lap 6, quiet 2, story 5, treat 4 energy); a hint line gives their want away ("holding a book"). A match is +2 mood and 10 purr, a mismatch is -1 mood and 3 extra energy. Each resident has a window of energy spent when they receive visitors; members of TITTIES meet until 30 spent and pay double purr. Anyone unvisited is one mood quieter next day; moods carry across the 5-day run. 20 native tests. Not built: saves, sound, Anvil art, the garden door and lounge, residents coming and going, a final run summary.

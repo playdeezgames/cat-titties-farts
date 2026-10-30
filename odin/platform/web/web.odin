@@ -42,6 +42,24 @@ platform_frame_height :: proc "c" () -> i32 {
 	return game.VIEW_HEIGHT
 }
 
+@(export)
+platform_sfx_count :: proc "c" () -> i32 {
+	return i32(state.sfx_count)
+}
+
+@(export)
+platform_sfx_at :: proc "c" (i: i32) -> i32 {
+	if i < 0 || int(i) >= state.sfx_count {
+		return 0
+	}
+	return i32(state.sfx[i])
+}
+
+@(export)
+platform_sfx_clear :: proc "c" () {
+	state.sfx_count = 0
+}
+
 // command: 0 up, 1 right, 2 down, 3 left, 4 A, 5 B.
 @(export)
 platform_command :: proc "c" (command: i32, down: i32) {

@@ -15,6 +15,19 @@ Screen :: enum {
 	Ledger,
 }
 
+// The page loads one wav per entry (its name in lower case, assets/sfx/<name>.wav); keep web/index.html in step.
+Sfx :: enum u8 {
+	None,
+	Purr,
+	Content,
+	Wrong,
+	Bell,
+	Fart,
+	Blip,
+	Day_End,
+	Bump,
+}
+
 Hue :: enum u8 {
 	Night,
 	Wall,
@@ -68,6 +81,9 @@ Game :: struct {
 	cursor:      Want,
 	message:     string,
 	message_buf: [96]u8,
+	// Sounds raised since the page last collected them.
+	sfx:         [16]Sfx,
+	sfx_count:   int,
 	canvas:      Canvas,
 	// RGBA bytes of the last frame, read by the page.
 	pixels:      [VIEW_WIDTH * VIEW_HEIGHT]u32,

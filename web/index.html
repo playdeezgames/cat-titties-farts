@@ -35,14 +35,38 @@
 <script>
 (function () {
 	"use strict";
-	// Order must match `Sfx` in odin/game/types.odin (index 0 is "none").
-	const SOUND_FILES = [null, "EnemyDeath", "EnemyHit", "Miss", "PlayerDeath", "PlayerHit", "Shucks", "Craft", "Eat", "Take", "Tasty", "WooHoo", "Yoink"];
 	const canvas = document.getElementById("screen");
 	const ctx = canvas.getContext("2d");
 	const logEl = document.getElementById("log");
 	const mem = new odin.WasmMemoryInterface();
 	const enc = new TextEncoder();
 	const dec = new TextDecoder();
+
+	// Order must match `Sfx` in odin/game/types.odin (index 0 is "none").
+	const SOUND_FILES = [null, "purr", "content", "wrong", "bell", "fart", "blip", "day_end", "bump"];
+	let audio = null;
+	const buffers = [];
+	function unlockAudio() {
+		if (audio) { if (audio.state === "suspended") { audio.resume(); } return; }
+		const AC = window.AudioContext || window.webkitAudioContext;
+		if (!AC) { return; }
+		audio = new AC();
+		SOUND_FILES.forEach((name, i) => {
+			if (!name) { return; }
+			fetch("sfx/" + name + ".wav").then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => audio.decodeAudioData(b, res, rej)))
+				.then(buf => { buffers[i] = buf; }).catch(() => {});
+		});
+	}
+	function playSfx(i) {
+		const buf = buffers[i];
+		if (!audio || !buf) { return; }
+		const src = audio.createBufferSource();
+		const gain = audio.createGain();
+		gain.gain.value = 0.4;
+		src.buffer = buf;
+		src.connect(gain).connect(audio.destination);
+		src.start();
+	}
 
 	const imports = { env: { entropy() { return Math.random(); } } };
 
@@ -66,6 +90,7 @@
 	let exp = null;
 	function send(cmd, down) {
 		if (!exp) { return; }
+		unlockAudio();
 		exp.platform_command(cmd, down ? 1 : 0);
 	}
 	window.addEventListener("keydown", e => {
@@ -106,7 +131,7 @@
 		btn.addEventListener("pointercancel", release);
 	});
 	// A tap on the picture is "A", so a phone without the pad can still advance the splash and messages.
-	canvas.addEventListener("pointerdown", e => { canvas.focus(); if (e.pointerType === "touch") { send(4, true); send(4, false); } });
+	canvas.addEventListener("pointerdown", e => { unlockAudio(); canvas.focus(); if (e.pointerType === "touch") { send(4, true); send(4, false); } });
 
 	// ---- drawing ----
 	const image = new ImageData(320, 180);
@@ -126,10 +151,14 @@
 			const ptr = exp.platform_frame_ptr();
 			image.data.set(new Uint8ClampedArray(mem.memory.buffer, ptr, 320 * 180 * 4));
 			ctx.putImageData(image, 0, 0);
+			const n = exp.platform_sfx_count();
+			for (let i = 0; i < n; i++) { playSfx(exp.platform_sfx_at(i)); }
+			if (n > 0) { exp.platform_sfx_clear(); }
 		}
 		requestAnimationFrame(frame);
 	}
 
+	unlockAudio(); // creates the context early (suspended until a key or tap) so the sounds are decoded by then
 	odin.runWasm("game.wasm", null, imports, mem).then(() => {
 		exp = mem.exports;
 		fit();

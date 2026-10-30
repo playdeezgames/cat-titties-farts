@@ -52,6 +52,8 @@ MINUTES := [DAYS_PER_RUN]string {
 }
 PURR_MATCH :: 10
 MISMATCH_EXTRA_COST :: 3
+// One lap visit in this many ends in a fart.
+FART_ODDS :: 4
 
 // What each offer costs in energy.
 OFFER_COST := [Want]int {

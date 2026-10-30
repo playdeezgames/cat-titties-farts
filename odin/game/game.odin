@@ -8,6 +8,13 @@ game_init :: proc(g: ^Game, seed: u64) {
 	g.screen = .Title
 }
 
+play :: proc(g: ^Game, sfx: Sfx) {
+	if g.sfx_count < len(g.sfx) {
+		g.sfx[g.sfx_count] = sfx
+		g.sfx_count += 1
+	}
+}
+
 set_message :: proc(g: ^Game, format: string, args: ..any) {
 	g.message = fmt.bprintf(g.message_buf[:], format, ..args)
 }
@@ -48,6 +55,7 @@ start_day :: proc(g: ^Game) {
 	g.screen = .Rounds
 	g.energy = ENERGY_MAX
 	set_message(g, "TITTIES meets in the hall until %d energy is spent.", MEETING_END)
+	play(g, .Bell)
 	g.offering = false
 	for row, y in MAP_ROWS {
 		for ch, x in row {
@@ -66,6 +74,7 @@ start_day :: proc(g: ^Game) {
 end_day :: proc(g: ^Game) {
 	g.offering = false
 	g.energy = max(g.energy, 0)
+	play(g, .Day_End)
 	for &r in g.residents {
 		if !r.visited {
 			r.mood = max(r.mood - 1, 0)
@@ -105,11 +114,15 @@ bump :: proc(g: ^Game, i: int) {
 	switch {
 	case r.visited:
 		set_message(g, "%s has had a visit today.", r.name)
+		play(g, .Bump)
 	case spent < window[0]:
 		set_message(g, "%s is not receiving yet.", r.name)
+		play(g, .Bump)
 	case spent >= window[1]:
 		set_message(g, "%s is no longer receiving.", r.name)
+		play(g, .Bump)
 	case:
+		play(g, .Blip)
 		g.offering = true
 		g.target = i
 		g.cursor = .Lap
@@ -130,6 +143,7 @@ make_offer :: proc(g: ^Game) {
 		r.mood = min(r.mood + 2, MOOD_MAX)
 		gain := PURR_MATCH * 2 if meeting else PURR_MATCH
 		g.purr += gain
+		play(g, .Purr if g.cursor == .Lap else .Content)
 		if meeting {
 			set_message(g, "TITTIES meeting! %s is content. +%d purr.", r.name, gain)
 		} else {
@@ -139,6 +153,19 @@ make_offer :: proc(g: ^Game) {
 		r.mood = max(r.mood - 1, 0)
 		cost += MISMATCH_EXTRA_COST
 		set_message(g, "%s wanted %s.", r.name, WANT_TEXT[r.want])
+		play(g, .Wrong)
+	}
+	// Nerves: a lap visit sometimes ends in a fart. Only someone who wanted quiet minds.
+	if g.cursor == .Lap && rng_below(&g.rng, FART_ODDS) == 0 {
+		prior_buf: [96]u8
+		n := copy(prior_buf[:], g.message)
+		play(g, .Fart)
+		if r.want == .Quiet {
+			r.mood = max(r.mood - 1, 0)
+			set_message(g, "%s The cat farts. %s minds.", string(prior_buf[:n]), r.name)
+		} else {
+			set_message(g, "%s The cat farts. Nobody minds.", string(prior_buf[:n]))
+		}
 	}
 	g.energy -= cost
 	if g.energy <= 0 {
@@ -168,8 +195,10 @@ offer_command :: proc(g: ^Game, command: Command) {
 	#partial switch command {
 	case .Up:
 		g.cursor = Want((int(g.cursor) + count - 1) % count)
+		play(g, .Blip)
 	case .Down:
 		g.cursor = Want((int(g.cursor) + 1) % count)
+		play(g, .Blip)
 	case .A:
 		make_offer(g)
 	case .B:

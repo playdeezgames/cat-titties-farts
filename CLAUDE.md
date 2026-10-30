@@ -21,6 +21,7 @@ odin test odin/game -collection:nhc=odin -define:ODIN_TEST_THREADS=1 -define:ODI
 - `odin/platform/web` is `step` plus `platform_*` exports; `web/index.html` blits the RGBA frame, maps keys and an on-screen pad. Imported as the collection `nhc` (`-collection:nhc=odin`). The `odin.js` runtime is copied from the Odin install at build time.
 - `odin/game/tile_data.odin` is **generated** by `tools/gen_tiles.py`, which cuts the listed (col, row) tiles out of the Urizen 1-bit sheet in `assets/tiles/` (CC0, credit vurmux). Tiles are one-colour masks; the game picks the hue. To use another tile, add it to `TILES` in the script. Find tile coordinates with the bok's `Tech/Urizen tile catalogue.md` and `Tech/urizen-crop.py`.
 - `odin/game/font_data.odin` is **generated** by `tools/gen_font.py` from `assets/fonts/dbyte_1x.png` (DINOBYTE, CC BY 4.0, needs credit). Do not edit it by hand.
+- Sound: the game raises `Sfx` values into `Game.sfx`; the page polls `platform_sfx_*` each frame and plays `sfx/<name>.wav`. The `SOUND_FILES` list in `web/index.html` must match the `Sfx` enum order. Sounds live as PLAY text in `assets/anvil/world.json` (Anvil world) and are exported to `assets/sfx/` with `sound_export`.
 - Same shape as T!ts UUp!! (`/home/yermom/git/tits-up`); copy from it when adding saves (localStorage via the platform shim) or sound.
 
 ## Governance and tooling (outside this repo)
