@@ -13,6 +13,148 @@ begin :: proc(g: ^Game) {
 	game_command(g, .A, true)
 }
 
+// An in-memory stand-in for the browser's localStorage (tests run on one thread).
+test_saved: [512]u8
+test_saved_len: int
+test_save_found: bool
+
+test_get :: proc(key: string) -> (string, bool) {
+	return string(test_saved[:test_saved_len]), test_save_found
+}
+
+test_set :: proc(key: string, value: string) {
+	test_saved_len = copy(test_saved[:], value)
+	test_save_found = true
+}
+
+reset_test_storage :: proc() {
+	test_saved_len = 0
+	test_save_found = false
+}
+
+game_with_storage :: proc(seed: u64 = 1) -> ^Game {
+	g := new(Game)
+	game_init(g, seed, Storage{get = test_get, set = test_set})
+	return g
+}
+
+@(test)
+a_run_is_saved_at_the_start_of_each_day_and_can_be_continued :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	testing.expect(t, !g.saved)
+	begin(g)
+	testing.expect(t, g.saved)
+	// Spoil day 1, then start day 2.
+	stand_beside(g, by_name(g, "Walter"), .Story, 10)
+	game_command(g, .Right, true)
+	g.cursor = .Treat
+	game_command(g, .A, true)
+	game_command(g, .B, true)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.day, 2)
+
+	h := game_with_storage(999)
+	defer free(h)
+	testing.expect(t, h.saved)
+	testing.expect_value(t, h.save.day, 2)
+	game_command(h, .A, true)
+	testing.expect_value(t, h.screen, Screen.Rounds)
+	testing.expect_value(t, h.day, 2)
+	testing.expect_value(t, h.energy, ENERGY_MAX)
+	testing.expect_value(t, h.purr, g.purr)
+	for r, i in g.residents {
+		testing.expect_value(t, h.residents[i].mood, r.mood)
+		testing.expect_value(t, h.residents[i].want, r.want)
+		testing.expect_value(t, h.residents[i].name, r.name)
+		testing.expect(t, !h.residents[i].visited)
+	}
+	testing.expect_value(t, h.rng.state, g.rng.state)
+}
+
+@(test)
+b_on_the_title_starts_a_new_run_over_the_save :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	begin(g)
+	game_command(g, .B, true)
+	game_command(g, .A, true)
+	testing.expect_value(t, g.day, 2)
+
+	h := game_with_storage(5)
+	defer free(h)
+	game_command(h, .B, true)
+	testing.expect_value(t, h.day, 1)
+	testing.expect_value(t, h.screen, Screen.Rounds)
+	h2 := game_with_storage(6)
+	defer free(h2)
+	testing.expect_value(t, h2.save.day, 1)
+}
+
+@(test)
+b_on_the_title_does_nothing_without_a_save :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	game_command(g, .B, true)
+	testing.expect_value(t, g.screen, Screen.Title)
+}
+
+@(test)
+finishing_the_run_clears_the_save :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	begin(g)
+	for _ in 1 ..= DAYS_PER_RUN {
+		game_command(g, .B, true)
+		game_command(g, .A, true)
+	}
+	testing.expect_value(t, g.screen, Screen.Title)
+	testing.expect(t, !g.saved)
+	h := game_with_storage()
+	defer free(h)
+	testing.expect(t, !h.saved)
+}
+
+@(test)
+damaged_saves_are_refused :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	begin(g)
+	good := string(test_saved[:test_saved_len])
+	_, ok := parse_save(good)
+	testing.expect(t, ok)
+	bad := []string {
+		"",
+		"junk",
+		"nhc1",
+		"nhc2 1 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0",
+		"nhc1 0 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0", // day 0
+		"nhc1 6 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0", // day 6
+		"nhc1 1 0 0 1 9 3 3 3 3 3 3 0 0 0 0 0 0 0", // mood 9
+		"nhc1 1 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 7", // want 7
+		"nhc1 1 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0", // one short
+		"nhc1 1 0 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0 0", // one long
+		"nhc1 1 x 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0",
+		"nhc1 1 -4 0 1 3 3 3 3 3 3 3 0 0 0 0 0 0 0",
+	}
+	for text in bad {
+		_, ok = parse_save(text)
+		testing.expectf(t, !ok, "accepted %q", text)
+	}
+	// A bad stored value leaves a fresh game with no save and a working title.
+	test_set(SAVE_KEY, "nhc1 1 0 0 1 9 3 3 3 3 3 3 0 0 0 0 0 0 0")
+	h := game_with_storage()
+	defer free(h)
+	testing.expect(t, !h.saved)
+	begin(h)
+	testing.expect_value(t, h.screen, Screen.Rounds)
+}
+
 @(test)
 rng_is_deterministic :: proc(t: ^testing.T) {
 	a, b: Rng

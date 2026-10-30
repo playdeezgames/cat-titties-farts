@@ -7,7 +7,13 @@ draw_title :: proc(g: ^Game) {
 	draw_text_centered(c, 52, "NURSING HOME CAT", .Cream, 3)
 	draw_text_centered(c, 84, "of SPLORR!!", .Gold, 2)
 	draw_text_centered(c, 108, "home of the TITTIES knitting circle", .Rose)
-	draw_text_centered(c, 134, "Press A to begin the rounds", .Gray)
+	if g.saved {
+		buf: [64]u8
+		draw_text_centered(c, 128, fmt.bprintf(buf[:], "A: continue day %d (the day starts over)", g.save.day), .Gray)
+		draw_text_centered(c, 140, "B: new run", .Gray)
+	} else {
+		draw_text_centered(c, 134, "Press A to begin the rounds", .Gray)
+	}
 	draw_text_centered(c, 158, "DINOBYTE font by mby, CC BY 4.0", .Wall)
 	draw_text_centered(c, 168, "Urizen tiles by vurmux, CC0", .Wall)
 }

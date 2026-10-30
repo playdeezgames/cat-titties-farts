@@ -73,6 +73,10 @@ Game :: struct {
 	energy:      int,
 	residents:   [RESIDENT_COUNT]Resident,
 	purr:        int,
+	storage:     Storage,
+	// A good saved run was found (g.save) or has just been written.
+	saved:       bool,
+	save:        SaveData,
 	// Visits paid to TITTIES members this run (for the annual report).
 	member_visits: int,
 	// The offer menu is open for residents[target], with the cursor on one of the four offers.

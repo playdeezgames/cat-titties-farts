@@ -2,10 +2,12 @@ package game
 
 import "core:fmt"
 
-game_init :: proc(g: ^Game, seed: u64) {
+game_init :: proc(g: ^Game, seed: u64, storage: Storage = {}) {
 	g^ = {}
+	g.storage = storage
 	rng_seed(&g.rng, seed)
 	g.screen = .Title
+	find_save(g)
 }
 
 play :: proc(g: ^Game, sfx: Sfx) {
@@ -19,11 +21,8 @@ set_message :: proc(g: ^Game, format: string, args: ..any) {
 	g.message = fmt.bprintf(g.message_buf[:], format, ..args)
 }
 
-// A run is DAYS_PER_RUN days; moods carry across days, so the residents are set up once here.
-new_run :: proc(g: ^Game) {
-	g.day = 1
-	g.purr = 0
-	g.member_visits = 0
+// The residents' places, names and windows; moods start fresh. Their wants are rolled (or loaded) separately.
+setup_residents :: proc(g: ^Game) {
 	index, members, others := 0, 0, 0
 	for row, y in MAP_ROWS {
 		for ch, x in row {
@@ -48,10 +47,32 @@ new_run :: proc(g: ^Game) {
 			index += 1
 		}
 	}
+}
+
+// A run is DAYS_PER_RUN days; moods carry across days, so the residents are set up once here.
+new_run :: proc(g: ^Game) {
+	g.day = 1
+	g.purr = 0
+	g.member_visits = 0
+	setup_residents(g)
 	start_day(g)
 }
 
-start_day :: proc(g: ^Game) {
+// Picks up the saved run at the start of the day it was saved on.
+continue_run :: proc(g: ^Game) {
+	s := g.save
+	g.day, g.purr, g.member_visits = s.day, s.purr, s.member_visits
+	g.rng.state = s.rng_state
+	setup_residents(g)
+	for &r, i in g.residents {
+		r.mood = s.moods[i]
+		r.want = Want(s.wants[i])
+	}
+	begin_day(g)
+}
+
+// A new day: full energy, the cat at the door, the meeting opens. Wants are already set.
+begin_day :: proc(g: ^Game) {
 	g.screen = .Rounds
 	g.energy = ENERGY_MAX
 	set_message(g, "TITTIES meets in the hall until %d energy is spent.", MEETING_END)
@@ -65,9 +86,16 @@ start_day :: proc(g: ^Game) {
 		}
 	}
 	for &r in g.residents {
-		r.want = Want(rng_below(&g.rng, len(Want)))
 		r.visited = false
 	}
+}
+
+start_day :: proc(g: ^Game) {
+	for &r in g.residents {
+		r.want = Want(rng_below(&g.rng, len(Want)))
+	}
+	begin_day(g)
+	save_run(g)
 }
 
 // Anyone left unvisited is a little quieter tomorrow.
@@ -212,8 +240,17 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 	}
 	switch g.screen {
 	case .Title:
-		if command == .A {
-			new_run(g)
+		#partial switch command {
+		case .A:
+			if g.saved {
+				continue_run(g)
+			} else {
+				new_run(g)
+			}
+		case .B:
+			if g.saved {
+				new_run(g)
+			}
 		}
 	case .Rounds:
 		if g.offering {
@@ -236,6 +273,7 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 	case .Ledger:
 		if command == .A {
 			if g.day >= DAYS_PER_RUN {
+				clear_save(g)
 				g.screen = .Title
 			} else {
 				g.day += 1

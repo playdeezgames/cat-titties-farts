@@ -22,6 +22,7 @@ odin test odin/game -collection:nhc=odin -define:ODIN_TEST_THREADS=1 -define:ODI
 - `odin/game/tile_data.odin` is **generated** by `tools/gen_tiles.py`, which cuts the listed (col, row) tiles out of the Urizen 1-bit sheet in `assets/tiles/` (CC0, credit vurmux). Tiles are one-colour masks; the game picks the hue. To use another tile, add it to `TILES` in the script. Find tile coordinates with the bok's `Tech/Urizen tile catalogue.md` and `Tech/urizen-crop.py`.
 - `odin/game/font_data.odin` is **generated** by `tools/gen_font.py` from `assets/fonts/dbyte_1x.png` (DINOBYTE, CC BY 4.0, needs credit). Do not edit it by hand.
 - Sound: the game raises `Sfx` values into `Game.sfx`; the page polls `platform_sfx_*` each frame and plays `sfx/<name>.wav`. The `SOUND_FILES` list in `web/index.html` must match the `Sfx` enum order. Sounds live as PLAY text in `assets/anvil/world.json` (Anvil world) and are exported to `assets/sfx/` with `sound_export`.
+- Saves: `odin/game/save.odin` (one line of text under `nhc:run`, validated field by field in `parse_save`); the platform passes `Storage{get, set}` to `game_init` and either proc may be nil. If you add state to `Game` that must survive a visit, extend `SaveData`, bump `SAVE_TAG`, and extend the damaged-save test.
 - Same shape as T!ts UUp!! (`/home/yermom/git/tits-up`); copy from it when adding saves (localStorage via the platform shim) or sound.
 
 ## Governance and tooling (outside this repo)

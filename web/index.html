@@ -68,7 +68,33 @@
 		src.start();
 	}
 
-	const imports = { env: { entropy() { return Math.random(); } } };
+	// ---- storage (every itch.io game shares one origin, so the game prefixes its own keys with "nhc:") ----
+	const memoryStore = new Map();
+	function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return memoryStore.get(k) ?? null; } }
+	function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { memoryStore.set(k, v); } }
+	function key(ptr, len) { return dec.decode(new Uint8Array(mem.memory.buffer, ptr, len)); }
+	const pending = new Map(); // key -> bytes, handed to the game by storage_read right after storage_len
+	const imports = {
+		env: {
+			entropy() { return Math.random(); },
+			storage_len(kp, kl) {
+				const k = key(kp, kl);
+				const v = lsGet(k);
+				if (v === null) { pending.delete(k); return -1; }
+				const bytes = enc.encode(v);
+				pending.set(k, bytes);
+				return bytes.length;
+			},
+			storage_read(kp, kl, buf, cap) {
+				const bytes = pending.get(key(kp, kl));
+				if (!bytes) { return; }
+				new Uint8Array(mem.memory.buffer, buf, Math.min(cap, bytes.length)).set(bytes.subarray(0, cap));
+			},
+			storage_write(kp, kl, vp, vl) {
+				lsSet(key(kp, kl), dec.decode(new Uint8Array(mem.memory.buffer, vp, vl)));
+			},
+		},
+	};
 
 	// ---- input ----
 	// 0 up, 1 right, 2 down, 3 left, 4 A, 5 B  (the game's Command enum)

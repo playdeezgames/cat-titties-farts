@@ -45,6 +45,10 @@ Urizen 1-bit tiles by vurmux (CC0) for walls, floor, furniture, the cat (1,14) a
 
 Eight square-wave sounds made in the Anvil (`assets/anvil/world.json` holds the PLAY text; WAVs in `assets/sfx/`): purr (a matched lap), content (any other match), wrong, bell (the TITTIES meeting opens each day), blip (menu), bump (someone not receiving), day_end and fart. The farts are in the game now: one lap visit in four ends in one, and only a resident who wanted quiet minds (-1 mood).
 
+## Saves (October 30, 2026)
+
+The run is saved to localStorage (`nhc:run`, one line of text) at the start of every day: day, purr, member visits, the RNG state, every resident's mood and want. The title offers "A: continue day N (the day starts over)" and "B: new run". Finishing day 5 clears the save. A damaged or out-of-range save is refused and the game starts clean. Mid-day state is deliberately not saved: continuing restarts the day with the same wants and full energy.
+
 ## Status
 
 October 30, 2026: scaffold plus core visit rules (task 345). Walking into a resident opens an offer menu (lap 6, quiet 2, story 5, treat 4 energy); a hint line gives their want away ("holding a book"). A match is +2 mood and 10 purr, a mismatch is -1 mood and 3 extra energy. Each resident has a window of energy spent when they receive visitors; members of TITTIES meet until 30 spent and pay double purr. Anyone unvisited is one mood quieter next day; moods carry across the 5-day run. 20 native tests. Not built: saves, sound, Anvil art, the garden door and lounge, residents coming and going, a final run summary.
