@@ -86,11 +86,16 @@ Game :: struct {
 	confirming_nap: bool,
 	// Set when this browser has not seen the booklet yet; it opens on the first run.
 	show_help_first: bool,
+	// Day 1 of a first run: a blinking marker and a plain-words prompt lead the player through a first visit.
+	coaching:    bool,
+	// Seconds since the game started; drives the blink.
+	clock:       f64,
 	offering:    bool,
 	target:      int,
 	cursor:      Want,
 	message:     string,
 	message_buf: [96]u8,
+	coach_buf:   [96]u8,
 	// Sounds raised since the page last collected them.
 	sfx:         [16]Sfx,
 	sfx_count:   int,

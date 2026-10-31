@@ -61,6 +61,8 @@ new_run :: proc(g: ^Game) {
 	setup_residents(g)
 	start_day(g)
 	if g.show_help_first {
+		g.coaching = true
+		g.message = ""
 		g.show_help_first = false
 		g.help_page = 1
 		if g.storage.set != nil {
@@ -111,6 +113,7 @@ start_day :: proc(g: ^Game) {
 
 // Anyone left unvisited is a little quieter tomorrow.
 end_day :: proc(g: ^Game) {
+	g.coaching = false
 	g.offering = false
 	g.confirming_nap = false
 	g.help_page = 0
@@ -145,6 +148,41 @@ visited_count :: proc(g: ^Game) -> int {
 		}
 	}
 	return n
+}
+
+is_receiving :: proc(g: ^Game, r: Resident) -> bool {
+	spent := energy_spent(g)
+	return !r.visited && spent >= r.window[0] && spent < r.window[1]
+}
+
+// The nearest resident who is receiving and not yet visited, or -1. The coach points at them.
+coach_target :: proc(g: ^Game) -> int {
+	best, best_distance := -1, 0
+	for r, i in g.residents {
+		if !is_receiving(g, r) {
+			continue
+		}
+		distance := abs(r.pos.x - g.cat.x) + abs(r.pos.y - g.cat.y)
+		if best < 0 || distance < best_distance {
+			best, best_distance = i, distance
+		}
+	}
+	return best
+}
+
+// The coach's line for what the player should do right now.
+coach_text :: proc(g: ^Game) -> string {
+	if g.offering {
+		r := g.residents[g.target]
+		return fmt.bprintf(g.coach_buf[:], "Match the hint: %s means %s. Pick it, press A.", WANT_HINT[r.want], WANT_TEXT[r.want])
+	}
+	if coach_target(g) < 0 {
+		return "Nobody else is receiving now. Press B to nap."
+	}
+	if visited_count(g) == 0 {
+		return "Walk into the blinking resident to visit them."
+	}
+	return "Well done. Visit more: each step costs 1 energy."
 }
 
 // Bumping a resident opens the offer menu, if they are receiving; it costs no energy.
@@ -323,6 +361,7 @@ game_command :: proc(g: ^Game, command: Command, down: bool) {
 }
 
 game_frame :: proc(g: ^Game, dt: f64) {
+	g.clock += dt
 	c := &g.canvas
 	canvas_clear(c, .Night)
 	switch g.screen {

@@ -76,6 +76,20 @@ draw_rounds :: proc(g: ^Game) {
 	}
 	// A long result (a visit plus a fart) wraps onto the row just under the map instead of running off the screen.
 	message := g.message if g.message != "" else "Walk into a resident to visit.  A: help"
+	if g.coaching && g.help_page == 0 && (g.message == "" || g.offering) {
+		message = coach_text(g)
+	}
+	if g.coaching && !g.offering && g.help_page == 0 && int(g.clock * 3) % 2 == 0 {
+		if i := coach_target(g); i >= 0 {
+			r := g.residents[i]
+			x, y := r.pos.x * TILE, MAP_TOP + r.pos.y * TILE
+			canvas_fill(c, x - 1, y - 1, TILE + 2, 1, .Gold)
+			canvas_fill(c, x - 1, y + TILE, TILE + 2, 1, .Gold)
+			canvas_fill(c, x - 1, y, 1, TILE, .Gold)
+			canvas_fill(c, x + TILE, y, 1, TILE, .Gold)
+			draw_char(c, x + (TILE - FONT_WIDTH) / 2, y - FONT_HEIGHT - 1, 31, .Gold)
+		}
+	}
 	message_lines: [2]string
 	line_count := wrap_text(message, VIEW_WIDTH / FONT_WIDTH, message_lines[:])
 	for i in 0 ..< min(line_count, len(message_lines)) {

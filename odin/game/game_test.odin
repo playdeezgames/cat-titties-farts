@@ -720,3 +720,43 @@ test_longest_messages_fit_two_lines :: proc(t: ^testing.T) {
 	}
 	testing.expectf(t, worst <= 2 * (VIEW_WIDTH / FONT_WIDTH) - 4 && worst < len(buf), "longest message is %d characters", worst)
 }
+
+@(test)
+the_coach_leads_a_first_run_through_one_visit :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	defer free(g)
+	game_command(g, .A, true)
+	testing.expect(t, g.coaching)
+	game_command(g, .B, true) // close the booklet
+	testing.expect_value(t, g.help_page, 0)
+	i := coach_target(g)
+	testing.expect(t, i >= 0 && g.residents[i].member) // only the hall is open at the start
+	testing.expect(t, strings.contains(coach_text(g), "blinking"))
+	stand_beside(g, i, .Lap, 0)
+	game_command(g, .Right, true)
+	testing.expect(t, g.offering)
+	testing.expect(t, strings.contains(coach_text(g), WANT_HINT[g.residents[i].want]))
+	game_command(g, .A, true)
+	testing.expect(t, strings.contains(coach_text(g), "Well done"))
+	nap(g)
+	testing.expect(t, !g.coaching)
+}
+
+@(test)
+the_coach_is_off_when_a_run_continues_and_its_lines_fit :: proc(t: ^testing.T) {
+	reset_test_storage()
+	g := game_with_storage()
+	game_command(g, .A, true)
+	free(g)
+	h := game_with_storage(2)
+	defer free(h)
+	game_command(h, .A, true) // continue
+	testing.expect(t, !h.coaching)
+	for want in Want {
+		h.offering = true
+		h.target = 0
+		h.residents[0].want = want
+		testing.expect(t, len(coach_text(h)) <= 2 * (VIEW_WIDTH / FONT_WIDTH) - 4)
+	}
+}
