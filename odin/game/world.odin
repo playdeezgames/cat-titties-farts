@@ -45,10 +45,26 @@ MEETING_END :: 30
 // The society's secretary takes minutes every day; each fits on one line of the ledger.
 MINUTES := [DAYS_PER_RUN]string {
 	"Minutes: Item 1, the name. Item 1 carried again.",
-	"Minutes: Tatting motion passed. Nurse left room.",
-	"Minutes: Biscuits were discussed at length.",
-	"Minutes: New signage. Nurse asked to be excused.",
+	"Minutes: Motion to table the TITTIES. Seconded.",
+	"Minutes: Members compared sizes. Of the biscuits.",
+	"Minutes: Dolores found a lump. It was the cake.",
 	"Minutes: Annual report. Nurse is still laughing.",
+}
+// What a member says when the cat visits during a meeting (format args: name, purr). Each fits the message line.
+MEETING_QUIPS := [6]string {
+	"%s: the TITTIES are out. +%d purr.",
+	"%s lifts the tea cosy. +%d purr.",
+	"%s: nice pair of needles. +%d purr.",
+	"%s wants a firm grip. +%d purr.",
+	"%s: hold my tatting. +%d purr.",
+	"%s: bigger than last year. +%d purr.",
+}
+// What the room says when the cat farts and nobody minds. Short, because it follows the visit result on one line.
+FART_QUIPS := [4]string {
+	"The cat farts. Nobody minds.",
+	"The cat farts. Blame the chair.",
+	"The cat farts. Hearty applause.",
+	"The cat farts. Tea cosy helps.",
 }
 PURR_MATCH :: 10
 MISMATCH_EXTRA_COST :: 3
@@ -103,6 +119,6 @@ HELP_TEXT := [HELP_PAGES]string {
 	"You are the cat. It is the afternoon at the care home and everyone would like a visit. Nobody wants the same kind of visit, and you cannot see them all.\nEvery step you take costs 1 energy. At 0 the day is over. Five days make a run. Earn as much purr as you can.",
 	"Walk into a resident to visit them. A menu opens. Look at what they are doing: patting their knees means a lap, eyes closed means quiet, holding a book means a story, glancing at the biscuit tin means a treat.\nPick the match: they cheer up and you earn 10 purr. Pick wrong: they sulk, and you lose extra energy.",
 	"Residents only receive visitors at certain times, shown as how much energy you have left. Walk into someone who is not receiving and the game tells you when they will be.\nEveryone gets one visit a day. Anyone you skip is a little quieter tomorrow, and moods carry over from day to day.",
-	"The teal residents in the hall are the Tuesday Indoor Tatting and Tea Interest Exchange Society: the TITTIES. They meet from the start of each day until you have used 30 energy. A matched visit to a member pays double purr.\nThe night nurse has stopped trying to say it with a straight face.",
+	"The teal residents in the hall are the Tuesday Indoor Tatting and Tea Interest Exchange Society: the TITTIES. They meet from the start of each day until you have used 30 energy. A matched visit to a member pays double purr.\nMembership is open to anyone with a good pair of needles. The cat has been asked to give the bigger ones a firm, steady look.\nThe night nurse has stopped trying to say it with a straight face.",
 	"Move: arrow keys, WASD or the number pad.\nA, Enter or Space: choose, and open this booklet while walking.\nB or Escape: go back. While walking, B offers to nap, which ends the day.\nOn a phone, use the buttons under the picture.\nYour run is saved at the start of every day.",
 }

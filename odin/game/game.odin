@@ -186,7 +186,7 @@ make_offer :: proc(g: ^Game) {
 		g.purr += gain
 		play(g, .Purr if g.cursor == .Lap else .Content)
 		if meeting {
-			set_message(g, "TITTIES meeting! %s is content. +%d purr.", r.name, gain)
+			set_message(g, MEETING_QUIPS[(g.member_visits + g.day) % len(MEETING_QUIPS)], r.name, gain)
 		} else {
 			set_message(g, "%s is content. +%d purr.", r.name, gain)
 		}
@@ -205,7 +205,7 @@ make_offer :: proc(g: ^Game) {
 			r.mood = max(r.mood - 1, 0)
 			set_message(g, "%s The cat farts. %s minds.", string(prior_buf[:n]), r.name)
 		} else {
-			set_message(g, "%s The cat farts. Nobody minds.", string(prior_buf[:n]))
+			set_message(g, "%s %s", string(prior_buf[:n]), FART_QUIPS[(g.day + g.member_visits + g.energy) % len(FART_QUIPS)])
 		}
 	}
 	g.energy -= cost
