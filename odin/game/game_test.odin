@@ -1,6 +1,7 @@
 #+build !js
 package game
 
+import "core:fmt"
 import "core:strings"
 import "core:testing"
 
@@ -701,4 +702,21 @@ fuzz_random_commands_never_break_invariants :: proc(t: ^testing.T) {
 			}
 		}
 	}
+}
+
+@(test)
+test_longest_messages_fit_two_lines :: proc(t: ^testing.T) {
+	worst := 0
+	buf: [96]u8
+	for name in ([]string{"Mrs. Abernathy", "Mr. Lindqvist", "Mrs. Okafor"}) {
+		for quip in MEETING_QUIPS {
+			for fart in FART_QUIPS {
+				m := fmt.bprintf(buf[:], quip, name, 20)
+				worst = max(worst, len(m) + 1 + len(fart))
+			}
+		}
+		m := fmt.bprintf(buf[:], "%s wanted %s.", name, "a warm lap")
+		worst = max(worst, len(m) + 1 + len(FART_QUIPS[1]))
+	}
+	testing.expectf(t, worst <= 2 * (VIEW_WIDTH / FONT_WIDTH) - 4 && worst < len(buf), "longest message is %d characters", worst)
 }

@@ -74,7 +74,13 @@ draw_rounds :: proc(g: ^Game) {
 	if g.offering {
 		draw_offer_menu(g)
 	}
-	draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT, g.message if g.message != "" else "Walk into a resident to visit.  A: help", .Gold)
+	// A long result (a visit plus a fart) wraps onto the row just under the map instead of running off the screen.
+	message := g.message if g.message != "" else "Walk into a resident to visit.  A: help"
+	message_lines: [2]string
+	line_count := wrap_text(message, VIEW_WIDTH / FONT_WIDTH, message_lines[:])
+	for i in 0 ..< min(line_count, len(message_lines)) {
+		draw_text_centered(c, VIEW_HEIGHT - FONT_HEIGHT * (min(line_count, len(message_lines)) - i), message_lines[i], .Gold)
+	}
 	if g.confirming_nap {
 		draw_box(c, 56, 64, 208, 40)
 		draw_text_centered(c, 72, "Nap now and end the day?", .Cream)
