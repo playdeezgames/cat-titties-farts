@@ -277,6 +277,10 @@ help_command :: proc(g: ^Game, command: Command) {
 		g.help_page = max(g.help_page - 1, 1)
 	case .B:
 		g.help_page = 0
+	case .Up:
+		// The guide comes back for the rest of the day, whatever run this is.
+		g.coaching = true
+		g.help_page = 0
 	}
 }
 

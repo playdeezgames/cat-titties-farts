@@ -205,7 +205,7 @@ a_opens_the_booklet_while_walking_and_it_costs_nothing :: proc(t: ^testing.T) {
 	start, energy := g.cat, g.energy
 	game_command(g, .A, true)
 	testing.expect_value(t, g.help_page, 1)
-	game_command(g, .Up, true) // walking is paused while reading
+	game_command(g, .Down, true) // walking is paused while reading
 	game_command(g, .Left, true)
 	testing.expect_value(t, g.cat, start)
 	for page in 2 ..= HELP_PAGES {
@@ -759,4 +759,19 @@ the_coach_is_off_when_a_run_continues_and_its_lines_fit :: proc(t: ^testing.T) {
 		h.residents[0].want = want
 		testing.expect(t, len(coach_text(h)) <= 2 * (VIEW_WIDTH / FONT_WIDTH) - 4)
 	}
+}
+
+@(test)
+up_in_the_booklet_brings_the_guide_back :: proc(t: ^testing.T) {
+	g := new_game()
+	defer free(g)
+	begin(g)
+	testing.expect(t, !g.coaching)
+	game_command(g, .A, true) // open the booklet
+	testing.expect(t, g.help_page > 0)
+	game_command(g, .Up, true)
+	testing.expect(t, g.coaching)
+	testing.expect_value(t, g.help_page, 0)
+	nap(g)
+	testing.expect(t, !g.coaching) // it lasts the rest of the day
 }
